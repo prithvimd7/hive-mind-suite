@@ -14,6 +14,7 @@ import { Route as SalesRouteImport } from './routes/sales'
 import { Route as ProductionRouteImport } from './routes/production'
 import { Route as MarketingRouteImport } from './routes/marketing'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as FinanceRouteImport } from './routes/finance'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as AiRouteImport } from './routes/ai'
@@ -44,6 +45,11 @@ const InventoryRoute = InventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntegrationsRoute = IntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FinanceRoute = FinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/ai': typeof AiRoute
   '/crm': typeof CrmRoute
   '/finance': typeof FinanceRoute
+  '/integrations': typeof IntegrationsRoute
   '/inventory': typeof InventoryRoute
   '/marketing': typeof MarketingRoute
   '/production': typeof ProductionRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/ai': typeof AiRoute
   '/crm': typeof CrmRoute
   '/finance': typeof FinanceRoute
+  '/integrations': typeof IntegrationsRoute
   '/inventory': typeof InventoryRoute
   '/marketing': typeof MarketingRoute
   '/production': typeof ProductionRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/ai': typeof AiRoute
   '/crm': typeof CrmRoute
   '/finance': typeof FinanceRoute
+  '/integrations': typeof IntegrationsRoute
   '/inventory': typeof InventoryRoute
   '/marketing': typeof MarketingRoute
   '/production': typeof ProductionRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/ai'
     | '/crm'
     | '/finance'
+    | '/integrations'
     | '/inventory'
     | '/marketing'
     | '/production'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/ai'
     | '/crm'
     | '/finance'
+    | '/integrations'
     | '/inventory'
     | '/marketing'
     | '/production'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/ai'
     | '/crm'
     | '/finance'
+    | '/integrations'
     | '/inventory'
     | '/marketing'
     | '/production'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   AiRoute: typeof AiRoute
   CrmRoute: typeof CrmRoute
   FinanceRoute: typeof FinanceRoute
+  IntegrationsRoute: typeof IntegrationsRoute
   InventoryRoute: typeof InventoryRoute
   MarketingRoute: typeof MarketingRoute
   ProductionRoute: typeof ProductionRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/integrations': {
+      id: '/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/finance': {
       id: '/finance'
       path: '/finance'
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   AiRoute: AiRoute,
   CrmRoute: CrmRoute,
   FinanceRoute: FinanceRoute,
+  IntegrationsRoute: IntegrationsRoute,
   InventoryRoute: InventoryRoute,
   MarketingRoute: MarketingRoute,
   ProductionRoute: ProductionRoute,
