@@ -30,7 +30,9 @@ export const setSourceStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, unknown> = { status: data.status };
+    const patch: { status: string; config?: Record<string, unknown>; last_synced_at?: string } = {
+      status: data.status,
+    };
     if (data.config) patch.config = data.config;
     if (data.status === "connected") patch.last_synced_at = new Date().toISOString();
     const { error } = await supabaseAdmin
