@@ -14,7 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ad_spend_imports: {
+        Row: {
+          campaign: string | null
+          clicks: number
+          conversions: number
+          created_at: string
+          id: string
+          impressions: number
+          platform: string
+          raw: Json
+          revenue: number
+          spend: number
+          spend_date: string
+        }
+        Insert: {
+          campaign?: string | null
+          clicks?: number
+          conversions?: number
+          created_at?: string
+          id?: string
+          impressions?: number
+          platform: string
+          raw?: Json
+          revenue?: number
+          spend?: number
+          spend_date: string
+        }
+        Update: {
+          campaign?: string | null
+          clicks?: number
+          conversions?: number
+          created_at?: string
+          id?: string
+          impressions?: number
+          platform?: string
+          raw?: Json
+          revenue?: number
+          spend?: number
+          spend_date?: string
+        }
+        Relationships: []
+      }
+      data_sources: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          last_synced_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          kind: string
+          label: string
+          last_synced_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          last_synced_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sales_imports: {
+        Row: {
+          channel: string | null
+          created_at: string
+          currency: string
+          external_id: string | null
+          id: string
+          order_date: string
+          orders: number
+          raw: Json
+          revenue: number
+          source: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          currency?: string
+          external_id?: string | null
+          id?: string
+          order_date: string
+          orders?: number
+          raw?: Json
+          revenue?: number
+          source: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          currency?: string
+          external_id?: string | null
+          id?: string
+          order_date?: string
+          orders?: number
+          raw?: Json
+          revenue?: number
+          source?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
