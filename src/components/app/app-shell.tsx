@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   LayoutDashboard, TrendingUp, Megaphone, Factory, Package, Wallet,
-  Users, UserSquare2, Sparkles, Search, Bell, Sun, Moon, Menu, Command as CmdIcon,
+  Users, UserSquare2, Sparkles, Search, Bell, Sun, Moon, Menu, Command as CmdIcon, Plug,
 } from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
