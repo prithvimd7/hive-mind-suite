@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   LayoutDashboard, TrendingUp, Megaphone, Factory, Package, Wallet,
-  Users, UserSquare2, Sparkles, Search, Bell, Sun, Moon, Menu, Command as CmdIcon,
+  Users, UserSquare2, Sparkles, Search, Bell, Sun, Moon, Menu, Command as CmdIcon, Plug,
 } from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
@@ -26,7 +26,8 @@ export const NAV = [
   { to: "/finance",    label: "Finance",    icon: Wallet,          hint: "P&L & cash" },
   { to: "/crm",        label: "CRM",        icon: UserSquare2,     hint: "Leads & pipeline" },
   { to: "/team",       label: "Team",       icon: Users,           hint: "HR & KPIs" },
-  { to: "/ai",         label: "AI Advisor", icon: Sparkles,        hint: "Ask anything" },
+  { to: "/ai",           label: "AI Advisor",   icon: Sparkles,     hint: "Ask anything" },
+  { to: "/integrations", label: "Integrations", icon: Plug,         hint: "Shopify, Meta, Amazon…" },
 ] as const;
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
