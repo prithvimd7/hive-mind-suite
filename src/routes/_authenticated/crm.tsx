@@ -5,7 +5,7 @@ import { SectionCard } from "@/components/app/section-card";
 import { pipeline, currency, compact } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
 
-export const Route = createFileRoute("/crm")({
+export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({ meta: [
     { title: "CRM — Company OS" },
     { name: "description", content: "Customers, distributors, leads and pipeline in one flow." },

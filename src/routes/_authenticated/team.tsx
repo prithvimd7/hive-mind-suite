@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/team")({
+export const Route = createFileRoute("/_authenticated/team")({
   head: () => ({ meta: [
     { title: "Team — Company OS" },
     { name: "description", content: "Attendance, KPIs, targets and a live team leaderboard." },

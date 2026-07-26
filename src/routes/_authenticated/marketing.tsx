@@ -7,7 +7,7 @@ import { campaigns, currency } from "@/lib/mock-data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/marketing")({
+export const Route = createFileRoute("/_authenticated/marketing")({
   head: () => ({ meta: [
     { title: "Marketing — Company OS" },
     { name: "description", content: "Meta, Google and Amazon ads: spend, ROAS, CAC, top campaigns and creatives." },

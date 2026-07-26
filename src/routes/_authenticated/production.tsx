@@ -6,7 +6,7 @@ import { LineDual, Heatmap } from "@/components/app/charts";
 import { production, currency } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
 
-export const Route = createFileRoute("/production")({
+export const Route = createFileRoute("/_authenticated/production")({
   head: () => ({ meta: [
     { title: "Production — Company OS" },
     { name: "description", content: "Daily production, batches, yield, protein %, downtime and quality." },

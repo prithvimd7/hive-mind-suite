@@ -5,7 +5,7 @@ import { SectionCard } from "@/components/app/section-card";
 import { StackedRevenue, RevenueArea } from "@/components/app/charts";
 import { financePnL, revenueTrend, currency } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/finance")({
+export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [
     { title: "Finance — Company OS" },
     { name: "description", content: "Revenue, expenses, cash flow, receivables, EBITDA and monthly P&L." },

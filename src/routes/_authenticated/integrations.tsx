@@ -16,7 +16,7 @@ import {
   listDataSources, setSourceStatus, importSalesRows, importAdRows, getIntegrationsSummary,
 } from "@/lib/integrations.functions";
 
-export const Route = createFileRoute("/integrations")({
+export const Route = createFileRoute("/_authenticated/integrations")({
   head: () => ({ meta: [
     { title: "Integrations — Company OS" },
     { name: "description", content: "Connect Shopify, Amazon Seller, Meta Ads, Blinkit and upload offline sales." },
