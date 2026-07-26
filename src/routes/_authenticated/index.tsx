@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { KpiCard } from "@/components/app/kpi-card";
 import { SectionCard } from "@/components/app/section-card";
 import { PageHeader } from "@/components/app/page-header";
-import { RevenueArea, LineDual, BarsChart } from "@/components/app/charts";
+import { EmptyState } from "@/components/app/empty-state";
+import { RevenueArea, BarsChart } from "@/components/app/charts";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { revenueTrend, salesForecast, channelSales, topProducts, currency, compact } from "@/lib/mock-data";
+import { currency, compact } from "@/lib/mock-data";
+import { useSalesData } from "@/hooks/use-sales-data";
 import { Download, Calendar } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -20,6 +22,8 @@ export const Route = createFileRoute("/_authenticated/")({
 });
 
 function Executive() {
+  const { data, isLoading } = useSalesData(30);
+
   return (
     <div>
       <PageHeader
@@ -33,97 +37,80 @@ function Executive() {
         }
       />
 
+      {/* Live from Supabase (sales_imports) */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        <KpiCard label="Today's Sales"     value={currency(412000)}  delta={8.4}  hint="vs yesterday" />
-        <KpiCard label="Yesterday"         value={currency(380000)}  delta={-2.1} />
-        <KpiCard label="This Month"        value={currency(8940000)} delta={12.6} />
-        <KpiCard label="Year to Date"      value={currency(94200000)} delta={18.3} />
-        <KpiCard label="Profit"            value={currency(2340000)} delta={9.2} />
-        <KpiCard label="Gross Margin"      value="38.4%" delta={1.4} />
-        <KpiCard label="Net Margin"        value="16.8%" delta={0.6} />
-        <KpiCard label="Orders"            value={compact(18420)}    delta={11.2} />
-        <KpiCard label="Avg Order Value"   value={currency(1284)}    delta={3.1} />
-        <KpiCard label="Units Sold"        value={compact(52310)}    delta={6.4} />
-        <KpiCard label="Cash Flow"         value={currency(3120000)} delta={4.8} />
-        <KpiCard label="Inventory Value"   value={currency(12800000)} delta={-1.2} />
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-2xl" />)
+        ) : (
+          <>
+            <KpiCard label="Revenue (30d)" value={currency(data?.totalRevenue ?? 0)} to="/sales" hint="Live" />
+            <KpiCard label="Orders (30d)"  value={compact(data?.totalOrders ?? 0)} to="/sales" hint="Live" />
+            <KpiCard label="Avg Order Value" value={currency(Math.round(data?.aov ?? 0))} to="/sales" hint="Live" />
+            <KpiCard label="Active Channels" value={String(data?.byChannel.length ?? 0)} to="/sales" hint="Live" />
+          </>
+        )}
+
+        {/* Not backed by real tables yet — clearly flagged rather than shown as confident numbers */}
+        <KpiCard label="Profit"          value="—" to="/finance" hint="Needs Finance module" />
+        <KpiCard label="Gross Margin"    value="—" to="/finance" hint="Needs Finance module" />
+        <KpiCard label="Net Margin"      value="—" to="/finance" hint="Needs Finance module" />
+        <KpiCard label="Cash Flow"       value="—" to="/finance" hint="Needs Finance module" />
+        <KpiCard label="Inventory Value" value="—" to="/inventory" hint="Needs Inventory module" />
+        <KpiCard label="Units Sold"      value="—" to="/production" hint="Needs Production module" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <SectionCard title="Revenue trend" description="Last 30 days vs previous period" className="lg:col-span-2">
-          <RevenueArea data={revenueTrend} />
+        <SectionCard title="Revenue trend" description="Last 30 days, from real sales entries" className="lg:col-span-2">
+          {isLoading ? (
+            <Skeleton className="h-[280px] rounded-xl" />
+          ) : data?.hasData ? (
+            <RevenueArea data={data.revenueTrend} />
+          ) : (
+            <EmptyState
+              title="No sales data yet"
+              description="Add a sale or connect a channel to see your revenue trend."
+              ctaLabel="Add a sale"
+              ctaTo="/entry"
+            />
+          )}
         </SectionCard>
-        <SectionCard title="Sales forecast" description="Next 12 months (AI-projected)">
-          <LineDual data={salesForecast} />
-        </SectionCard>
-      </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <SectionCard title="Daily target vs actual" description="Today">
-          <div className="space-y-4">
-            {[
-              { label: "Revenue",   pct: 82, val: currency(412000), goal: currency(500000) },
-              { label: "Orders",    pct: 71, val: "312", goal: "440" },
-              { label: "New leads", pct: 96, val: "48", goal: "50" },
-            ].map((t) => (
-              <div key={t.label}>
-                <div className="flex justify-between text-sm mb-1.5">
-                  <span className="text-muted-foreground">{t.label}</span>
-                  <span className="font-medium">{t.val} <span className="text-muted-foreground">/ {t.goal}</span></span>
-                </div>
-                <Progress value={t.pct} className="h-1.5" />
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Weekly & Monthly targets">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-xs text-muted-foreground">Weekly</div>
-              <div className="text-2xl font-semibold mt-1">68%</div>
-              <Progress value={68} className="h-1.5 mt-2" />
-              <div className="text-[11px] text-muted-foreground mt-1">₹28.4L / ₹42L</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Monthly</div>
-              <div className="text-2xl font-semibold mt-1">54%</div>
-              <Progress value={54} className="h-1.5 mt-2" />
-              <div className="text-[11px] text-muted-foreground mt-1">₹89.4L / ₹1.65Cr</div>
-            </div>
-          </div>
-          <div className="mt-5 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Growth (MoM)</span>
-            <Badge variant="secondary" className="rounded-full">+12.6%</Badge>
-          </div>
-          <div className="mt-2 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Pending payments</span>
-            <span className="font-medium">{currency(1820000)}</span>
-          </div>
-          <div className="mt-2 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Outstanding receivables</span>
-            <span className="font-medium">{currency(3420000)}</span>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Top selling products">
-          <div className="divide-y">
-            {topProducts.map((p, i) => (
-              <div key={p.name} className="py-3 flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-muted grid place-items-center text-xs font-semibold">{i + 1}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium truncate">{p.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{compact(p.units)} units · {p.margin}% margin</div>
-                </div>
-                <div className="text-sm font-semibold">{currency(p.revenue)}</div>
-              </div>
-            ))}
-          </div>
+        <SectionCard title="Sales forecast" description="Coming soon">
+          <EmptyState
+            title="Forecasting needs more history"
+            description="Once a few weeks of real sales data are in, we can project the next 12 months."
+          />
         </SectionCard>
       </div>
 
       <div className="mt-4">
-        <SectionCard title="Revenue by channel" description="Cross-channel performance">
-          <BarsChart data={channelSales} />
+        <SectionCard title="Revenue by channel" description="Cross-channel performance, from real sales entries">
+          {isLoading ? (
+            <Skeleton className="h-[280px] rounded-xl" />
+          ) : data?.hasData ? (
+            <BarsChart data={data.byChannel} />
+          ) : (
+            <EmptyState
+              title="No channel data yet"
+              description="Revenue by channel will appear here once sales are recorded."
+              ctaLabel="Add a sale"
+              ctaTo="/entry"
+            />
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-4">
+        <SectionCard title="Other modules">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="rounded-full">Production — not connected</Badge>
+            <Badge variant="secondary" className="rounded-full">Inventory — not connected</Badge>
+            <Badge variant="secondary" className="rounded-full">Finance — not connected</Badge>
+            <Badge variant="secondary" className="rounded-full">CRM — not connected</Badge>
+            <Badge variant="secondary" className="rounded-full">Team — not connected</Badge>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            These modules still show placeholder layouts until their data tables are built. Ask to have any of these wired up next.
+          </div>
         </SectionCard>
       </div>
     </div>
