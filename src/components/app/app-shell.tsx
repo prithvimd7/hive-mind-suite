@@ -38,8 +38,8 @@ export const NAV: readonly NavItem[] = [
 ];
 
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 function SidebarContent({ onNavigate, role }: { onNavigate?: () => void; role: AppRole | null }) {
+
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const visible = NAV.filter((n) => !n.roles || (role && n.roles.includes(role)));
   return (
