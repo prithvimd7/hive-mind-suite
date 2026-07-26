@@ -95,6 +95,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const { role, email, name, avatar } = useRole();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -109,15 +112,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
+  async function signOut() {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
+  // Public routes render bare (no shell chrome)
+  if (pathname === "/auth") {
+    return <div className="min-h-screen bg-background text-foreground">{children}</div>;
+  }
+
+  const initials = (name ?? email ?? "?").slice(0, 2).toUpperCase();
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Sidebar (desktop) */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 border-r bg-sidebar text-sidebar-foreground">
-        <SidebarContent />
+        <SidebarContent role={role} />
       </aside>
 
       <div className="lg:pl-64">
-        {/* Topbar */}
         <header className="sticky top-0 z-30 glass border-b">
           <div className="h-14 px-3 md:px-6 flex items-center gap-2">
             <Sheet>
@@ -127,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-72">
-                <SidebarContent />
+                <SidebarContent role={role} />
               </SheetContent>
             </Sheet>
 
@@ -167,17 +180,46 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button size="sm" variant="secondary" onClick={() => setAiOpen(true)} className="gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Ask AI</span>
-                <kbd className="hidden md:inline rounded border px-1 text-[10px]">⌘J</kbd>
-              </Button>
+              {role === "ceo" && (
+                <Button size="sm" variant="secondary" onClick={() => setAiOpen(true)} className="gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Ask AI</span>
+                  <kbd className="hidden md:inline rounded border px-1 text-[10px]">⌘J</kbd>
+                </Button>
+              )}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full ml-1">
+                    <Avatar className="h-7 w-7">
+                      {avatar && <AvatarImage src={avatar} alt={name ?? ""} />}
+                      <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="flex-col items-start gap-0.5">
+                    <div className="text-sm truncate max-w-full">{name ?? "Signed in"}</div>
+                    <div className="text-[11px] font-normal text-muted-foreground truncate max-w-full">{email}</div>
+                    {role && (
+                      <Badge variant="secondary" className="mt-1 text-[10px] uppercase">
+                        {role === "ceo" ? "CEO" : "Salesperson"}
+                      </Badge>
+                    )}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={signOut} className="gap-2 text-destructive focus:text-destructive">
+                    <LogOut className="h-4 w-4" /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
 
         <main className="p-4 md:p-6 max-w-[1400px] mx-auto">{children}</main>
       </div>
+
 
       <CommandDialog open={cmdOpen} onOpenChange={setCmdOpen}>
         <CommandInput placeholder="Search modules, actions, reports…" />
