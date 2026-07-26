@@ -1,8 +1,9 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   LayoutDashboard, TrendingUp, Megaphone, Factory, Package, Wallet,
   Users, UserSquare2, Sparkles, Search, Bell, Sun, Moon, Menu, Command as CmdIcon, Plug,
+  Plus, LogOut,
 } from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
@@ -10,25 +11,32 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { AIAssistant } from "./ai-assistant";
 import { notifications } from "@/lib/mock-data";
+import { useRole, type AppRole } from "@/hooks/use-role";
+import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export const NAV = [
-  { to: "/",           label: "Executive",  icon: LayoutDashboard, hint: "Overview" },
-  { to: "/sales",      label: "Sales",      icon: TrendingUp,      hint: "Revenue & channels" },
-  { to: "/marketing",  label: "Marketing",  icon: Megaphone,       hint: "Ads & campaigns" },
-  { to: "/production", label: "Production", icon: Factory,         hint: "Batches & yield" },
-  { to: "/inventory",  label: "Inventory",  icon: Package,         hint: "Stock & reorder" },
-  { to: "/finance",    label: "Finance",    icon: Wallet,          hint: "P&L & cash" },
-  { to: "/crm",        label: "CRM",        icon: UserSquare2,     hint: "Leads & pipeline" },
-  { to: "/team",       label: "Team",       icon: Users,           hint: "HR & KPIs" },
-  { to: "/ai",           label: "AI Advisor",   icon: Sparkles,     hint: "Ask anything" },
-  { to: "/integrations", label: "Integrations", icon: Plug,         hint: "Shopify, Meta, Amazon…" },
-] as const;
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; hint: string; roles?: AppRole[] };
+
+export const NAV: readonly NavItem[] = [
+  { to: "/",             label: "Executive",    icon: LayoutDashboard, hint: "Overview",           roles: ["ceo"] },
+  { to: "/sales",        label: "Sales",        icon: TrendingUp,      hint: "Revenue & channels", roles: ["ceo"] },
+  { to: "/marketing",    label: "Marketing",    icon: Megaphone,       hint: "Ads & campaigns",    roles: ["ceo"] },
+  { to: "/production",   label: "Production",   icon: Factory,         hint: "Batches & yield",    roles: ["ceo"] },
+  { to: "/inventory",    label: "Inventory",    icon: Package,         hint: "Stock & reorder",    roles: ["ceo"] },
+  { to: "/finance",      label: "Finance",      icon: Wallet,          hint: "P&L & cash",         roles: ["ceo"] },
+  { to: "/crm",          label: "CRM",          icon: UserSquare2,     hint: "Leads & pipeline",   roles: ["ceo"] },
+  { to: "/team",         label: "Team",         icon: Users,           hint: "HR & KPIs",          roles: ["ceo"] },
+  { to: "/ai",           label: "AI Advisor",   icon: Sparkles,        hint: "Ask anything",       roles: ["ceo", "salesperson"] },
+  { to: "/entry",        label: "Add Sales",    icon: Plus,            hint: "Manual entry",       roles: ["ceo", "salesperson"] },
+  { to: "/integrations", label: "Integrations", icon: Plug,            hint: "Shopify, Meta, Amazon…", roles: ["ceo", "salesperson"] },
+];
+
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
