@@ -7,7 +7,7 @@ import { channelSales, revenueTrend, currency, compact } from "@/lib/mock-data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/sales")({
+export const Route = createFileRoute("/_authenticated/sales")({
   head: () => ({ meta: [
     { title: "Sales — Company OS" },
     { name: "description", content: "Sales across every channel: website, marketplaces, wholesale, distributors." },

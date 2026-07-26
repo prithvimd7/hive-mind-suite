@@ -9,109 +9,109 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TeamRouteImport } from './routes/team'
-import { Route as SalesRouteImport } from './routes/sales'
-import { Route as ProductionRouteImport } from './routes/production'
-import { Route as MarketingRouteImport } from './routes/marketing'
-import { Route as InventoryRouteImport } from './routes/inventory'
-import { Route as IntegrationsRouteImport } from './routes/integrations'
-import { Route as FinanceRouteImport } from './routes/finance'
-import { Route as CrmRouteImport } from './routes/crm'
-import { Route as AiRouteImport } from './routes/ai'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
+import { Route as AuthenticatedSalesRouteImport } from './routes/_authenticated/sales'
+import { Route as AuthenticatedProductionRouteImport } from './routes/_authenticated/production'
+import { Route as AuthenticatedMarketingRouteImport } from './routes/_authenticated/marketing'
+import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
+import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
+import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
+import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
 
-const TeamRoute = TeamRouteImport.update({
-  id: '/team',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+  id: '/_authenticated/team',
   path: '/team',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SalesRoute = SalesRouteImport.update({
-  id: '/sales',
+const AuthenticatedSalesRoute = AuthenticatedSalesRouteImport.update({
+  id: '/_authenticated/sales',
   path: '/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProductionRoute = ProductionRouteImport.update({
-  id: '/production',
+const AuthenticatedProductionRoute = AuthenticatedProductionRouteImport.update({
+  id: '/_authenticated/production',
   path: '/production',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MarketingRoute = MarketingRouteImport.update({
-  id: '/marketing',
+const AuthenticatedMarketingRoute = AuthenticatedMarketingRouteImport.update({
+  id: '/_authenticated/marketing',
   path: '/marketing',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InventoryRoute = InventoryRouteImport.update({
-  id: '/inventory',
+const AuthenticatedInventoryRoute = AuthenticatedInventoryRouteImport.update({
+  id: '/_authenticated/inventory',
   path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IntegrationsRoute = IntegrationsRouteImport.update({
-  id: '/integrations',
-  path: '/integrations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FinanceRoute = FinanceRouteImport.update({
-  id: '/finance',
+const AuthenticatedIntegrationsRoute =
+  AuthenticatedIntegrationsRouteImport.update({
+    id: '/_authenticated/integrations',
+    path: '/integrations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
+  id: '/_authenticated/finance',
   path: '/finance',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CrmRoute = CrmRouteImport.update({
-  id: '/crm',
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/_authenticated/crm',
   path: '/crm',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AiRoute = AiRouteImport.update({
-  id: '/ai',
+const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
+  id: '/_authenticated/ai',
   path: '/ai',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/ai': typeof AiRoute
-  '/crm': typeof CrmRoute
-  '/finance': typeof FinanceRoute
-  '/integrations': typeof IntegrationsRoute
-  '/inventory': typeof InventoryRoute
-  '/marketing': typeof MarketingRoute
-  '/production': typeof ProductionRoute
-  '/sales': typeof SalesRoute
-  '/team': typeof TeamRoute
+  '/ai': typeof AuthenticatedAiRoute
+  '/crm': typeof AuthenticatedCrmRoute
+  '/finance': typeof AuthenticatedFinanceRoute
+  '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/inventory': typeof AuthenticatedInventoryRoute
+  '/marketing': typeof AuthenticatedMarketingRoute
+  '/production': typeof AuthenticatedProductionRoute
+  '/sales': typeof AuthenticatedSalesRoute
+  '/team': typeof AuthenticatedTeamRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/ai': typeof AiRoute
-  '/crm': typeof CrmRoute
-  '/finance': typeof FinanceRoute
-  '/integrations': typeof IntegrationsRoute
-  '/inventory': typeof InventoryRoute
-  '/marketing': typeof MarketingRoute
-  '/production': typeof ProductionRoute
-  '/sales': typeof SalesRoute
-  '/team': typeof TeamRoute
+  '/ai': typeof AuthenticatedAiRoute
+  '/crm': typeof AuthenticatedCrmRoute
+  '/finance': typeof AuthenticatedFinanceRoute
+  '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/inventory': typeof AuthenticatedInventoryRoute
+  '/marketing': typeof AuthenticatedMarketingRoute
+  '/production': typeof AuthenticatedProductionRoute
+  '/sales': typeof AuthenticatedSalesRoute
+  '/team': typeof AuthenticatedTeamRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/ai': typeof AiRoute
-  '/crm': typeof CrmRoute
-  '/finance': typeof FinanceRoute
-  '/integrations': typeof IntegrationsRoute
-  '/inventory': typeof InventoryRoute
-  '/marketing': typeof MarketingRoute
-  '/production': typeof ProductionRoute
-  '/sales': typeof SalesRoute
-  '/team': typeof TeamRoute
+  '/_authenticated/ai': typeof AuthenticatedAiRoute
+  '/_authenticated/crm': typeof AuthenticatedCrmRoute
+  '/_authenticated/finance': typeof AuthenticatedFinanceRoute
+  '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
+  '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
+  '/_authenticated/marketing': typeof AuthenticatedMarketingRoute
+  '/_authenticated/production': typeof AuthenticatedProductionRoute
+  '/_authenticated/sales': typeof AuthenticatedSalesRoute
+  '/_authenticated/team': typeof AuthenticatedTeamRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/ai'
     | '/crm'
     | '/finance'
@@ -121,9 +121,9 @@ export interface FileRouteTypes {
     | '/production'
     | '/sales'
     | '/team'
+    | '/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/ai'
     | '/crm'
     | '/finance'
@@ -133,119 +133,120 @@ export interface FileRouteTypes {
     | '/production'
     | '/sales'
     | '/team'
+    | '/'
   id:
     | '__root__'
-    | '/'
-    | '/ai'
-    | '/crm'
-    | '/finance'
-    | '/integrations'
-    | '/inventory'
-    | '/marketing'
-    | '/production'
-    | '/sales'
-    | '/team'
+    | '/_authenticated/ai'
+    | '/_authenticated/crm'
+    | '/_authenticated/finance'
+    | '/_authenticated/integrations'
+    | '/_authenticated/inventory'
+    | '/_authenticated/marketing'
+    | '/_authenticated/production'
+    | '/_authenticated/sales'
+    | '/_authenticated/team'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AiRoute: typeof AiRoute
-  CrmRoute: typeof CrmRoute
-  FinanceRoute: typeof FinanceRoute
-  IntegrationsRoute: typeof IntegrationsRoute
-  InventoryRoute: typeof InventoryRoute
-  MarketingRoute: typeof MarketingRoute
-  ProductionRoute: typeof ProductionRoute
-  SalesRoute: typeof SalesRoute
-  TeamRoute: typeof TeamRoute
+  AuthenticatedAiRoute: typeof AuthenticatedAiRoute
+  AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
+  AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
+  AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
+  AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
+  AuthenticatedMarketingRoute: typeof AuthenticatedMarketingRoute
+  AuthenticatedProductionRoute: typeof AuthenticatedProductionRoute
+  AuthenticatedSalesRoute: typeof AuthenticatedSalesRoute
+  AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/team': {
-      id: '/team'
-      path: '/team'
-      fullPath: '/team'
-      preLoaderRoute: typeof TeamRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sales': {
-      id: '/sales'
-      path: '/sales'
-      fullPath: '/sales'
-      preLoaderRoute: typeof SalesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/production': {
-      id: '/production'
-      path: '/production'
-      fullPath: '/production'
-      preLoaderRoute: typeof ProductionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/marketing': {
-      id: '/marketing'
-      path: '/marketing'
-      fullPath: '/marketing'
-      preLoaderRoute: typeof MarketingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inventory': {
-      id: '/inventory'
-      path: '/inventory'
-      fullPath: '/inventory'
-      preLoaderRoute: typeof InventoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/integrations': {
-      id: '/integrations'
-      path: '/integrations'
-      fullPath: '/integrations'
-      preLoaderRoute: typeof IntegrationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/finance': {
-      id: '/finance'
-      path: '/finance'
-      fullPath: '/finance'
-      preLoaderRoute: typeof FinanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/crm': {
-      id: '/crm'
-      path: '/crm'
-      fullPath: '/crm'
-      preLoaderRoute: typeof CrmRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ai': {
-      id: '/ai'
-      path: '/ai'
-      fullPath: '/ai'
-      preLoaderRoute: typeof AiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/team': {
+      id: '/_authenticated/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AuthenticatedTeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/sales': {
+      id: '/_authenticated/sales'
+      path: '/sales'
+      fullPath: '/sales'
+      preLoaderRoute: typeof AuthenticatedSalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/production': {
+      id: '/_authenticated/production'
+      path: '/production'
+      fullPath: '/production'
+      preLoaderRoute: typeof AuthenticatedProductionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/marketing': {
+      id: '/_authenticated/marketing'
+      path: '/marketing'
+      fullPath: '/marketing'
+      preLoaderRoute: typeof AuthenticatedMarketingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/inventory': {
+      id: '/_authenticated/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof AuthenticatedInventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/integrations': {
+      id: '/_authenticated/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof AuthenticatedIntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/finance': {
+      id: '/_authenticated/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof AuthenticatedFinanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/ai': {
+      id: '/_authenticated/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AuthenticatedAiRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AiRoute: AiRoute,
-  CrmRoute: CrmRoute,
-  FinanceRoute: FinanceRoute,
-  IntegrationsRoute: IntegrationsRoute,
-  InventoryRoute: InventoryRoute,
-  MarketingRoute: MarketingRoute,
-  ProductionRoute: ProductionRoute,
-  SalesRoute: SalesRoute,
-  TeamRoute: TeamRoute,
+  AuthenticatedAiRoute: AuthenticatedAiRoute,
+  AuthenticatedCrmRoute: AuthenticatedCrmRoute,
+  AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
+  AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
+  AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
+  AuthenticatedMarketingRoute: AuthenticatedMarketingRoute,
+  AuthenticatedProductionRoute: AuthenticatedProductionRoute,
+  AuthenticatedSalesRoute: AuthenticatedSalesRoute,
+  AuthenticatedTeamRoute: AuthenticatedTeamRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

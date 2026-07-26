@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { useState } from "react";
 
-export const Route = createFileRoute("/ai")({
+export const Route = createFileRoute("/_authenticated/ai")({
   head: () => ({ meta: [
     { title: "AI Advisor — Company OS" },
     { name: "description", content: "Ask your business anything: sales, forecasts, campaigns, inventory, cash flow." },
