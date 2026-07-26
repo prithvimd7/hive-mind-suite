@@ -39,7 +39,9 @@ export const NAV: readonly NavItem[] = [
 
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ onNavigate, role }: { onNavigate?: () => void; role: AppRole | null }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const visible = NAV.filter((n) => !n.roles || (role && n.roles.includes(role)));
   return (
     <div className="flex h-full flex-col">
       <div className="px-5 py-5 flex items-center gap-2">
@@ -49,8 +51,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <div className="text-[11px] text-muted-foreground -mt-0.5">Business Intelligence</div>
         </div>
       </div>
-      <nav className="px-3 flex-1 space-y-0.5">
-        {NAV.map(({ to, label, icon: Icon, hint }) => {
+      <nav className="px-3 flex-1 space-y-0.5 overflow-y-auto">
+        {visible.map(({ to, label, icon: Icon, hint }) => {
           const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
           return (
             <Link
@@ -63,6 +65,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                   : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
               )}
+              title={hint}
             >
               <Icon className={cn("h-4 w-4", active ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
               <span className="flex-1">{label}</span>
@@ -73,14 +76,20 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
       <div className="p-3 border-t">
         <div className="rounded-xl p-3 bg-sidebar-accent/60">
-          <div className="text-xs font-medium">Upgrade workspace</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Unlock forecasts, AI advisor, unlimited seats.</div>
-          <Button size="sm" className="w-full mt-3 h-8">Upgrade</Button>
+          <div className="text-xs font-medium">
+            {role === "ceo" ? "CEO workspace" : role === "salesperson" ? "Salesperson access" : "Loading…"}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            {role === "ceo"
+              ? "Full access to all dashboards & data."
+              : "Add sales & pull data from Shopify and Amazon."}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [cmdOpen, setCmdOpen] = useState(false);
