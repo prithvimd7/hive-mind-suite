@@ -15,6 +15,7 @@ import {
 import {
   listDataSources, setSourceStatus, importSalesRows, importAdRows, getIntegrationsSummary,
 } from "@/lib/integrations.functions";
+import { triggerMetaSync } from "@/lib/meta-sync.functions";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
   head: () => ({ meta: [
@@ -77,6 +78,18 @@ function Integrations() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const metaSyncFn = useServerFn(triggerMetaSync);
+  const metaSync = useMutation({
+    mutationFn: () => metaSyncFn(),
+    onSuccess: (r) => {
+      toast.success(`Synced ${r.rows_synced} rows from Meta (${r.since} -> ${r.until})`);
+      qc.invalidateQueries({ queryKey: ["data_sources"] });
+      qc.invalidateQueries({ queryKey: ["integrations_summary"] });
+      qc.invalidateQueries({ queryKey: ["ad_spend_imports"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const byKind = new Map((sources.data ?? []).map((s) => [s.kind, s]));
 
   return (
@@ -118,6 +131,8 @@ function Integrations() {
               onToggle={(status) => setStatus.mutate({ kind: c.kind, status })}
               onCsv={(rows) => uploadAds.mutate({ platform: c.kind, rows: rows as AdCsvRow[] })}
               csvKind="ads"
+              onMetaSync={c.kind === "meta_ads" ? () => metaSync.mutate() : undefined}
+              metaSyncing={c.kind === "meta_ads" ? metaSync.isPending : false}
             />
           ))}
         </div>
@@ -147,13 +162,15 @@ type SalesCsvRow = { order_date: string; channel?: string; revenue: number; orde
 type AdCsvRow    = { spend_date: string; campaign?: string; spend: number; revenue: number; impressions: number; clicks: number; conversions: number };
 
 function SourceCard({
-  cfg, row, onToggle, onCsv, csvKind,
+  cfg, row, onToggle, onCsv, csvKind, onMetaSync, metaSyncing,
 }: {
   cfg: typeof CATALOG[number];
   row: { status: string; last_synced_at: string | null } | undefined;
   onToggle: (s: "connected" | "disconnected" | "pending") => void;
   onCsv: (rows: unknown[]) => void;
   csvKind: "sales" | "ads";
+  onMetaSync?: () => void;
+  metaSyncing?: boolean;
 }) {
   const Icon = cfg.icon;
   const status = row?.status ?? "disconnected";
@@ -189,7 +206,20 @@ function SourceCard({
         </div>
       </div>
 
-      {cfg.mode === "oauth" && (
+      {cfg.mode === "oauth" && onMetaSync && (
+        <div className="space-y-1.5">
+          <Button size="sm" onClick={onMetaSync} disabled={metaSyncing} className="gap-1.5">
+            <RefreshCw className={`h-3.5 w-3.5 ${metaSyncing ? "animate-spin" : ""}`} />
+            {metaSyncing ? "Syncing..." : "Sync now"}
+          </Button>
+          <div className="text-[10px] text-muted-foreground">
+            Pulls the last 7 days of campaign spend from Meta. Requires META_ACCESS_TOKEN, META_AD_ACCOUNT_ID
+            and CRON_SECRET to be set as Edge Function secrets, and CRON_SECRET set in the app's server environment too.
+          </div>
+        </div>
+      )}
+
+      {cfg.mode === "oauth" && !onMetaSync && (
         <div className="flex gap-2">
           {connected ? (
             <>
