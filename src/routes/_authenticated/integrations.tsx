@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   ShoppingBag, Package, Megaphone, Store, FileSpreadsheet, Building2, CheckCircle2, Circle, Upload, RefreshCw,
@@ -28,6 +29,53 @@ export const Route = createFileRoute("/_authenticated/integrations")({
 });
 
 type Kind = "shopify" | "amazon_seller" | "meta_ads" | "amazon_ads" | "blinkit" | "offline";
+
+function ymd(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+function daysAgo(n: number) {
+  return new Date(Date.now() - n * 86400000);
+}
+
+const META_RANGE_PRESETS = {
+  last7: {
+    label: "Last 7 days",
+    compute: () => ({ since: ymd(daysAgo(7)), until: ymd(new Date()) }),
+  },
+  last30: {
+    label: "Last 30 days",
+    compute: () => ({ since: ymd(daysAgo(30)), until: ymd(new Date()) }),
+  },
+  last90: {
+    label: "Last 90 days",
+    compute: () => ({ since: ymd(daysAgo(90)), until: ymd(new Date()) }),
+  },
+  thisMonth: {
+    label: "This month",
+    compute: () => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { since: ymd(start), until: ymd(now) };
+    },
+  },
+  lastMonth: {
+    label: "Last month",
+    compute: () => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { since: ymd(start), until: ymd(end) };
+    },
+  },
+  last3Months: {
+    label: "Last 3 months",
+    compute: () => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      return { since: ymd(start), until: ymd(now) };
+    },
+  },
+} as const;
 type Mode = "oauth" | "api_key" | "csv";
 
 const CATALOG: {
@@ -80,7 +128,7 @@ function Integrations() {
 
   const metaSyncFn = useServerFn(triggerMetaSync);
   const metaSync = useMutation({
-    mutationFn: () => metaSyncFn(),
+    mutationFn: (range: { since: string; until: string }) => metaSyncFn({ data: range }),
     onSuccess: (r) => {
       toast.success(`Synced ${r.rows_synced} rows from Meta (${r.since} -> ${r.until})`);
       qc.invalidateQueries({ queryKey: ["data_sources"] });
@@ -131,7 +179,7 @@ function Integrations() {
               onToggle={(status) => setStatus.mutate({ kind: c.kind, status })}
               onCsv={(rows) => uploadAds.mutate({ platform: c.kind, rows: rows as AdCsvRow[] })}
               csvKind="ads"
-              onMetaSync={c.kind === "meta_ads" ? () => metaSync.mutate() : undefined}
+              onMetaSync={c.kind === "meta_ads" ? (range) => metaSync.mutate(range) : undefined}
               metaSyncing={c.kind === "meta_ads" ? metaSync.isPending : false}
             />
           ))}
@@ -169,7 +217,7 @@ function SourceCard({
   onToggle: (s: "connected" | "disconnected" | "pending") => void;
   onCsv: (rows: unknown[]) => void;
   csvKind: "sales" | "ads";
-  onMetaSync?: () => void;
+  onMetaSync?: (range: { since: string; until: string }) => void;
   metaSyncing?: boolean;
 }) {
   const Icon = cfg.icon;
@@ -177,6 +225,7 @@ function SourceCard({
   const connected = status === "connected";
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [metaRange, setMetaRange] = useState<keyof typeof META_RANGE_PRESETS>("last30");
 
   const handleFile = async (file: File) => {
     try {
@@ -208,12 +257,27 @@ function SourceCard({
 
       {cfg.mode === "oauth" && onMetaSync && (
         <div className="space-y-1.5">
-          <Button size="sm" onClick={onMetaSync} disabled={metaSyncing} className="gap-1.5">
-            <RefreshCw className={`h-3.5 w-3.5 ${metaSyncing ? "animate-spin" : ""}`} />
-            {metaSyncing ? "Syncing..." : "Sync now"}
-          </Button>
+          <div className="flex gap-2">
+            <Select value={metaRange} onValueChange={(v) => setMetaRange(v as keyof typeof META_RANGE_PRESETS)}>
+              <SelectTrigger className="h-8 text-xs w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(META_RANGE_PRESETS).map(([key, p]) => (
+                  <SelectItem key={key} value={key} className="text-xs">{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              onClick={() => onMetaSync(META_RANGE_PRESETS[metaRange].compute())}
+              disabled={metaSyncing}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${metaSyncing ? "animate-spin" : ""}`} />
+              {metaSyncing ? "Syncing..." : "Sync now"}
+            </Button>
+          </div>
           <div className="text-[10px] text-muted-foreground">
-            Pulls the last 7 days of campaign spend from Meta. Requires META_ACCESS_TOKEN, META_AD_ACCOUNT_ID
+            Pulls campaign spend from Meta for the selected range. Requires META_ACCESS_TOKEN, META_AD_ACCOUNT_ID
             and CRON_SECRET to be set as Edge Function secrets, and CRON_SECRET set in the app's server environment too.
           </div>
         </div>

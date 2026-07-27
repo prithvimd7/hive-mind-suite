@@ -90,9 +90,12 @@ Deno.serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const days = Number(url.searchParams.get("days") ?? "7"); // re-pull last 7 days by default to catch late attribution
-    const until = new Date().toISOString().slice(0, 10);
-    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const sinceParam = url.searchParams.get("since");
+    const untilParam = url.searchParams.get("until");
+    const days = Number(url.searchParams.get("days") ?? "7"); // fallback: re-pull last N days
+
+    const until = untilParam ?? new Date().toISOString().slice(0, 10);
+    const since = sinceParam ?? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 
     const insights = await fetchAllInsights(accessToken, adAccountId, since, until);
 
