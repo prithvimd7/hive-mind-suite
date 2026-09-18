@@ -212,9 +212,8 @@ function Integrations() {
 
       {isCeo && (
         <div className="mb-4 rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
-          Live syncs run as Supabase edge functions. Each one needs its secrets set under Edge Functions → Secrets, plus
-          a <code className="text-foreground">CRON_SECRET</code> set both there and in the app server environment. A source
-          shows <b className="text-foreground">Connected</b> only after a sync has actually succeeded.
+          Live syncs use each provider's securely stored credentials. A source shows
+          <b className="text-foreground"> Connected</b> only after a sync has actually succeeded.
         </div>
       )}
 

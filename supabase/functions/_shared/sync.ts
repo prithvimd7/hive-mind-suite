@@ -1,7 +1,7 @@
 // Shared helpers for the sync-* edge functions.
 //
 // Every sync function:
-//   - is called with `Authorization: Bearer <CRON_SECRET>` (from the app's server or a cron job),
+//   - is called with a signed-in CEO token (manual sync) or CRON_SECRET (scheduled sync),
 //   - accepts ?since=YYYY-MM-DD&until=YYYY-MM-DD (defaults to the last 7 days),
 //   - writes into sales_imports / ad_spend_imports and marks its data_sources row as synced.
 
@@ -101,14 +101,33 @@ export async function markError(db: SupabaseClient, kind: string) {
   await db.from("data_sources").update({ status: "error" }).eq("kind", kind);
 }
 
-/** Standard wrapper: CRON_SECRET check, error → JSON, and data_sources status on failure. */
+/** Authorizes a scheduled job secret or independently verifies a signed-in CEO token. */
+async function authorizeSync(req: Request, db: SupabaseClient): Promise<boolean> {
+  const authorization = req.headers.get("Authorization") ?? "";
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (cronSecret && authorization === `Bearer ${cronSecret}`) return true;
+
+  if (!authorization.startsWith("Bearer ")) return false;
+  const token = authorization.slice("Bearer ".length);
+  const { data: userData, error: userError } = await db.auth.getUser(token);
+  if (userError || !userData.user) return false;
+
+  const { data: role, error: roleError } = await db
+    .from("user_roles")
+    .select("id")
+    .eq("user_id", userData.user.id)
+    .eq("role", "ceo")
+    .maybeSingle();
+  return !roleError && Boolean(role);
+}
+
+/** Standard wrapper: caller check, error → JSON, and data_sources status on failure. */
 export function serveSync(kind: string, run: (req: Request, db: SupabaseClient) => Promise<Record<string, unknown>>) {
   Deno.serve(async (req) => {
-    const cronSecret = Deno.env.get("CRON_SECRET");
-    if (!cronSecret || req.headers.get("Authorization") !== `Bearer ${cronSecret}`) {
+    const db = admin();
+    if (!(await authorizeSync(req, db))) {
       return json({ error: "Unauthorized" }, 401);
     }
-    const db = admin();
     try {
       return json({ ok: true, ...(await run(req, db)) });
     } catch (err) {
