@@ -47,6 +47,7 @@ export function useSalesData(period: number | DateRange = 30) {
   const now = new Date();
   const monthStart = localIso(new Date(now.getFullYear(), now.getMonth(), 1));
   const querySince = [range.since, monthStart, today()].sort()[0];
+  const queryUntil = [range.until, today()].sort().at(-1) ?? range.until;
   return useQuery({
     queryKey: ["sales_imports", range.since, range.until],
     placeholderData: keepPreviousData,
@@ -55,7 +56,7 @@ export function useSalesData(period: number | DateRange = 30) {
         .from("sales_imports")
         .select("order_date, revenue, orders, channel")
         .gte("order_date", querySince)
-        .lte("order_date", range.until)
+        .lte("order_date", queryUntil)
         .order("order_date", { ascending: true });
 
       if (error) throw error;
