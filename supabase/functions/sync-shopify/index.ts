@@ -97,7 +97,16 @@ async function getAccessToken(domain: string): Promise<string> {
   const clientId = Deno.env.get("SHOPIFY_CLIENT_ID");
   const clientSecret = Deno.env.get("SHOPIFY_CLIENT_SECRET");
   if (!clientId || !clientSecret) {
-    throw new HttpError(500, "Set SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET (Dev Dashboard app), or SHOPIFY_ACCESS_TOKEN (pre-2026 custom app).");
+    // List the Shopify-looking secret NAMES this function can see (never values), so a typo,
+    // wrong case or stray space in a secret name is obvious from the error.
+    const seen = Object.keys(Deno.env.toObject()).filter((k) => /shop/i.test(k)).map((k) => JSON.stringify(k));
+    throw new HttpError(
+      500,
+      "Set SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET (Dev Dashboard app), or SHOPIFY_ACCESS_TOKEN (pre-2026 custom app). " +
+        `Shopify secrets this function can see: ${seen.length ? seen.join(", ") : "none"}` +
+        (!clientId ? "; SHOPIFY_CLIENT_ID is missing or empty" : "") +
+        (!clientSecret ? "; SHOPIFY_CLIENT_SECRET is missing or empty" : "") + ".",
+    );
   }
   const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
     method: "POST",
