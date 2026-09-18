@@ -15,6 +15,8 @@ export const Route = createFileRoute("/_authenticated/sales")({
     { name: "description", content: "Sales across every channel: website, marketplaces, wholesale, distributors." },
     { property: "og:title", content: "Sales — Company OS" },
     { property: "og:description", content: "Sales performance across every channel." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
   ]}),
   component: Sales,
 });
@@ -41,9 +43,11 @@ function Sales() {
         </SectionCard>
       ) : (
         <>
-          <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
-            <KpiCard label="Revenue"  value={currency(data.totalRevenue)} to="/finance" />
-            <KpiCard label="Orders"   value={compact(data.totalOrders)} />
+          <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3">
+            <KpiCard label="Today's Sales" value={currency(data.todayRevenue)} to="/finance" />
+            <KpiCard label="Month Sales" value={currency(data.monthRevenue)} to="/finance" />
+            <KpiCard label="Revenue (30d)" value={currency(data.totalRevenue)} to="/finance" />
+            <KpiCard label="Orders (30d)" value={compact(data.totalOrders)} />
             <KpiCard label="AOV"      value={currency(Math.round(data.aov))} />
             <KpiCard label="Channels" value={String(data.byChannel.length)} />
           </div>
