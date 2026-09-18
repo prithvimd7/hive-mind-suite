@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { eachDay, rangeDays, type DateRange } from "@/lib/date-range";
+import { isoDaysAgo, today } from "@/lib/format";
 
 export interface DailyPoint {
   label: string;
@@ -32,19 +34,21 @@ const EMPTY: SalesData = {
   byChannel: [],
 };
 
-/** Real sales data from Supabase, aggregated for the last `days` days. Returns hasData=false if no rows exist yet. */
-export function useSalesData(days = 30) {
+/**
+ * Real sales data from Supabase for the last `days` days (including today) or an explicit date range.
+ * Returns hasData=false if no rows exist yet.
+ */
+export function useSalesData(period: number | DateRange = 30) {
+  const range = typeof period === "number" ? { since: isoDaysAgo(period - 1), until: today() } : period;
   return useQuery({
-    queryKey: ["sales_imports", days],
+    queryKey: ["sales_imports", range.since, range.until],
+    placeholderData: keepPreviousData,
     queryFn: async (): Promise<SalesData> => {
-      const since = new Date();
-      since.setDate(since.getDate() - days);
-      const sinceStr = since.toISOString().slice(0, 10);
-
       const { data, error } = await supabase
         .from("sales_imports")
         .select("order_date, revenue, orders, channel")
-        .gte("order_date", sinceStr)
+        .gte("order_date", range.since)
+        .lte("order_date", range.until)
         .order("order_date", { ascending: true });
 
       if (error) throw error;
@@ -57,10 +61,11 @@ export function useSalesData(days = 30) {
       for (const r of data) {
         byDay.set(r.order_date, (byDay.get(r.order_date) ?? 0) + Number(r.revenue));
       }
-      const revenueTrend: DailyPoint[] = Array.from(byDay.entries()).map(([date, value]) => ({
-        label: date.slice(5), // MM-DD
-        value,
-      }));
+      // One point per day (zero-filled) so gaps show as dips. Long ranges would be too dense, so weekly-bucket past ~45 days.
+      const days = eachDay(range);
+      const revenueTrend: DailyPoint[] = rangeDays(range) <= 45
+        ? days.map((d) => ({ label: d.slice(5), value: byDay.get(d) ?? 0 }))
+        : bucketWeekly(days, byDay);
 
       const byChannelMap = new Map<string, { revenue: number; orders: number }>();
       for (const r of data) {
@@ -87,4 +92,13 @@ export function useSalesData(days = 30) {
       };
     },
   });
+}
+
+function bucketWeekly(days: string[], byDay: Map<string, number>): DailyPoint[] {
+  const out: DailyPoint[] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    const week = days.slice(i, i + 7);
+    out.push({ label: `w/c ${week[0].slice(5)}`, value: week.reduce((a, d) => a + (byDay.get(d) ?? 0), 0) });
+  }
+  return out;
 }
