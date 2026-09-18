@@ -56,74 +56,131 @@ export type Database = {
         }
         Relationships: []
       }
-      production_batches: {
+      crm_contacts: {
         Row: {
-          batch_code: string
-          batch_date: string
+          city: string | null
+          company: string | null
+          contact_type: string
           created_at: string
-          created_by: string | null
-          downtime_minutes: number
+          deal_value: number
+          email: string | null
           id: string
-          line_id: string | null
+          name: string
+          next_follow_up: string | null
           notes: string | null
-          product_id: string | null
-          protein_pct: number | null
-          qc_status: string
-          rejects: number
-          units_planned: number
-          units_produced: number
+          owner_id: string
+          phone: string | null
+          stage: string
           updated_at: string
         }
         Insert: {
-          batch_code: string
-          batch_date?: string
+          city?: string | null
+          company?: string | null
+          contact_type?: string
           created_at?: string
-          created_by?: string | null
-          downtime_minutes?: number
+          deal_value?: number
+          email?: string | null
           id?: string
-          line_id?: string | null
+          name: string
+          next_follow_up?: string | null
           notes?: string | null
-          product_id?: string | null
-          protein_pct?: number | null
-          qc_status?: string
-          rejects?: number
-          units_planned?: number
-          units_produced?: number
+          owner_id?: string
+          phone?: string | null
+          stage?: string
           updated_at?: string
         }
         Update: {
-          batch_code?: string
-          batch_date?: string
+          city?: string | null
+          company?: string | null
+          contact_type?: string
           created_at?: string
-          created_by?: string | null
-          downtime_minutes?: number
+          deal_value?: number
+          email?: string | null
           id?: string
-          line_id?: string | null
+          name?: string
+          next_follow_up?: string | null
           notes?: string | null
-          product_id?: string | null
-          protein_pct?: number | null
-          qc_status?: string
-          rejects?: number
-          units_planned?: number
-          units_produced?: number
+          owner_id?: string
+          phone?: string | null
+          stage?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "production_batches_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "production_batches_line_id_fkey"
-            columns: ["line_id"]
-            isOneToOne: false
-            referencedRelation: "production_lines"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
+      }
+      data_sources: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          last_synced_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          kind: string
+          label: string
+          last_synced_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          last_synced_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          due_date: string | null
+          expense_date: string
+          gst_amount: number
+          id: string
+          is_cogs: boolean
+          notes: string | null
+          status: string
+          vendor: string | null
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          due_date?: string | null
+          expense_date?: string
+          gst_amount?: number
+          id?: string
+          is_cogs?: boolean
+          notes?: string | null
+          status?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          due_date?: string | null
+          expense_date?: string
+          gst_amount?: number
+          id?: string
+          is_cogs?: boolean
+          notes?: string | null
+          status?: string
+          vendor?: string | null
+        }
+        Relationships: []
       }
       inventory_items: {
         Row: {
@@ -178,48 +235,6 @@ export type Database = {
           },
         ]
       }
-      expenses: {
-        Row: {
-          amount: number
-          category: string
-          created_at: string
-          due_date: string | null
-          expense_date: string
-          gst_amount: number
-          id: string
-          is_cogs: boolean
-          notes: string | null
-          status: string
-          vendor: string | null
-        }
-        Insert: {
-          amount?: number
-          category: string
-          created_at?: string
-          due_date?: string | null
-          expense_date?: string
-          gst_amount?: number
-          id?: string
-          is_cogs?: boolean
-          notes?: string | null
-          status?: string
-          vendor?: string | null
-        }
-        Update: {
-          amount?: number
-          category?: string
-          created_at?: string
-          due_date?: string | null
-          expense_date?: string
-          gst_amount?: number
-          id?: string
-          is_cogs?: boolean
-          notes?: string | null
-          status?: string
-          vendor?: string | null
-        }
-        Relationships: []
-      }
       invoices: {
         Row: {
           amount: number
@@ -262,137 +277,74 @@ export type Database = {
         }
         Relationships: []
       }
-      crm_contacts: {
+      production_batches: {
         Row: {
-          city: string | null
-          company: string | null
-          contact_type: string
+          batch_code: string
+          batch_date: string
           created_at: string
-          deal_value: number
-          email: string | null
+          created_by: string
+          downtime_minutes: number
           id: string
-          name: string
-          next_follow_up: string | null
+          line_id: string | null
           notes: string | null
-          owner_id: string | null
-          phone: string | null
-          stage: string
+          product_id: string | null
+          protein_pct: number | null
+          qc_status: string
+          rejects: number
+          units_planned: number
+          units_produced: number
           updated_at: string
         }
         Insert: {
-          city?: string | null
-          company?: string | null
-          contact_type?: string
+          batch_code: string
+          batch_date?: string
           created_at?: string
-          deal_value?: number
-          email?: string | null
+          created_by?: string
+          downtime_minutes?: number
           id?: string
-          name: string
-          next_follow_up?: string | null
+          line_id?: string | null
           notes?: string | null
-          owner_id?: string | null
-          phone?: string | null
-          stage?: string
+          product_id?: string | null
+          protein_pct?: number | null
+          qc_status?: string
+          rejects?: number
+          units_planned?: number
+          units_produced?: number
           updated_at?: string
         }
         Update: {
-          city?: string | null
-          company?: string | null
-          contact_type?: string
+          batch_code?: string
+          batch_date?: string
           created_at?: string
-          deal_value?: number
-          email?: string | null
+          created_by?: string
+          downtime_minutes?: number
           id?: string
-          name?: string
-          next_follow_up?: string | null
+          line_id?: string | null
           notes?: string | null
-          owner_id?: string | null
-          phone?: string | null
-          stage?: string
+          product_id?: string | null
+          protein_pct?: number | null
+          qc_status?: string
+          rejects?: number
+          units_planned?: number
+          units_produced?: number
           updated_at?: string
         }
-        Relationships: []
-      }
-      team_members: {
-        Row: {
-          attendance: string
-          created_at: string
-          department: string | null
-          email: string | null
-          id: string
-          is_active: boolean
-          joined_on: string | null
-          kpi_score: number
-          monthly_target: number | null
-          name: string
-          phone: string | null
-          role: string | null
-          updated_at: string
-        }
-        Insert: {
-          attendance?: string
-          created_at?: string
-          department?: string | null
-          email?: string | null
-          id?: string
-          is_active?: boolean
-          joined_on?: string | null
-          kpi_score?: number
-          monthly_target?: number | null
-          name: string
-          phone?: string | null
-          role?: string | null
-          updated_at?: string
-        }
-        Update: {
-          attendance?: string
-          created_at?: string
-          department?: string | null
-          email?: string | null
-          id?: string
-          is_active?: boolean
-          joined_on?: string | null
-          kpi_score?: number
-          monthly_target?: number | null
-          name?: string
-          phone?: string | null
-          role?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      data_sources: {
-        Row: {
-          config: Json
-          created_at: string
-          id: string
-          kind: string
-          label: string
-          last_synced_at: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          config?: Json
-          created_at?: string
-          id?: string
-          kind: string
-          label: string
-          last_synced_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          config?: Json
-          created_at?: string
-          id?: string
-          kind?: string
-          label?: string
-          last_synced_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "production_batches_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "production_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       production_lines: {
         Row: {
@@ -499,6 +451,54 @@ export type Database = {
         }
         Relationships: []
       }
+      team_members: {
+        Row: {
+          attendance: string
+          created_at: string
+          department: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          joined_on: string | null
+          kpi_score: number
+          monthly_target: number | null
+          name: string
+          phone: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendance?: string
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          joined_on?: string | null
+          kpi_score?: number
+          monthly_target?: number | null
+          name: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendance?: string
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          joined_on?: string | null
+          kpi_score?: number
+          monthly_target?: number | null
+          name?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -550,12 +550,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -579,11 +579,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -604,11 +604,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -629,11 +629,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -646,11 +646,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

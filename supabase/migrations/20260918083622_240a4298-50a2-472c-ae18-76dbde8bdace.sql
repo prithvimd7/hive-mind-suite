@@ -1,9 +1,3 @@
--- Completes the remaining Company OS modules that were still on mock data:
--- production batches, inventory, finance (expenses + invoices), CRM and team.
--- Pattern matches earlier migrations: CEO has full access; salespeople get CRM
--- access (they work leads) and can log production batches. Everything else is CEO-only.
-
--- ───────────────────────── Production batches ─────────────────────────
 CREATE TABLE public.production_batches (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   batch_code text NOT NULL,
@@ -17,29 +11,26 @@ CREATE TABLE public.production_batches (
   protein_pct numeric(5,2),
   qc_status text NOT NULL DEFAULT 'pending' CHECK (qc_status IN ('pending', 'passed', 'failed')),
   notes text,
-  created_by uuid DEFAULT auth.uid(),
+  created_by uuid NOT NULL DEFAULT auth.uid(),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX production_batches_date_idx ON public.production_batches (batch_date);
-ALTER TABLE public.production_batches ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.production_batches TO authenticated;
 GRANT ALL ON public.production_batches TO service_role;
-
+ALTER TABLE public.production_batches ENABLE ROW LEVEL SECURITY;
+CREATE INDEX production_batches_date_idx ON public.production_batches (batch_date);
 CREATE POLICY "Authenticated can view batches" ON public.production_batches
   FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated can log batches" ON public.production_batches
-  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated can log own batches" ON public.production_batches
+  FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid());
 CREATE POLICY "CEO can update batches" ON public.production_batches
   FOR UPDATE TO authenticated
   USING (public.has_role(auth.uid(), 'ceo')) WITH CHECK (public.has_role(auth.uid(), 'ceo'));
 CREATE POLICY "CEO can delete batches" ON public.production_batches
   FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'ceo'));
-
 CREATE TRIGGER production_batches_touch BEFORE UPDATE ON public.production_batches
 FOR EACH ROW EXECUTE FUNCTION public.tg_touch_updated_at();
 
--- ───────────────────────── Inventory ─────────────────────────
 CREATE TABLE public.inventory_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   sku text NOT NULL UNIQUE,
@@ -54,10 +45,9 @@ CREATE TABLE public.inventory_items (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.inventory_items TO authenticated;
 GRANT ALL ON public.inventory_items TO service_role;
-
+ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated can view inventory" ON public.inventory_items
   FOR SELECT TO authenticated USING (true);
 CREATE POLICY "CEO can insert inventory" ON public.inventory_items
@@ -67,16 +57,12 @@ CREATE POLICY "CEO can update inventory" ON public.inventory_items
   USING (public.has_role(auth.uid(), 'ceo')) WITH CHECK (public.has_role(auth.uid(), 'ceo'));
 CREATE POLICY "CEO can delete inventory" ON public.inventory_items
   FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'ceo'));
-
 CREATE TRIGGER inventory_items_touch BEFORE UPDATE ON public.inventory_items
 FOR EACH ROW EXECUTE FUNCTION public.tg_touch_updated_at();
-
--- Seed finished-goods rows for the existing Kettle & Tonic SKUs (stock 0 until counted).
 INSERT INTO public.inventory_items (sku, name, item_type, unit, product_id)
 SELECT p.sku, p.name, 'finished', 'jars', p.id FROM public.products p
 ON CONFLICT (sku) DO NOTHING;
 
--- ───────────────────────── Finance ─────────────────────────
 CREATE TABLE public.expenses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   expense_date date NOT NULL DEFAULT current_date,
@@ -90,11 +76,10 @@ CREATE TABLE public.expenses (
   notes text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX expenses_date_idx ON public.expenses (expense_date);
-ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.expenses TO authenticated;
 GRANT ALL ON public.expenses TO service_role;
-
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+CREATE INDEX expenses_date_idx ON public.expenses (expense_date);
 CREATE POLICY "CEO can manage expenses" ON public.expenses
   FOR ALL TO authenticated
   USING (public.has_role(auth.uid(), 'ceo')) WITH CHECK (public.has_role(auth.uid(), 'ceo'));
@@ -112,15 +97,13 @@ CREATE TABLE public.invoices (
   notes text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.invoices TO authenticated;
 GRANT ALL ON public.invoices TO service_role;
-
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "CEO can manage invoices" ON public.invoices
   FOR ALL TO authenticated
   USING (public.has_role(auth.uid(), 'ceo')) WITH CHECK (public.has_role(auth.uid(), 'ceo'));
 
--- ───────────────────────── CRM ─────────────────────────
 CREATE TABLE public.crm_contacts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
@@ -133,30 +116,27 @@ CREATE TABLE public.crm_contacts (
   city text,
   next_follow_up date,
   notes text,
-  owner_id uuid DEFAULT auth.uid(),
+  owner_id uuid NOT NULL DEFAULT auth.uid(),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX crm_contacts_stage_idx ON public.crm_contacts (stage);
-ALTER TABLE public.crm_contacts ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.crm_contacts TO authenticated;
 GRANT ALL ON public.crm_contacts TO service_role;
-
+ALTER TABLE public.crm_contacts ENABLE ROW LEVEL SECURITY;
+CREATE INDEX crm_contacts_stage_idx ON public.crm_contacts (stage);
 CREATE POLICY "Authenticated can view contacts" ON public.crm_contacts
   FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated can add contacts" ON public.crm_contacts
-  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated can add own contacts" ON public.crm_contacts
+  FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
 CREATE POLICY "Owner or CEO can update contacts" ON public.crm_contacts
   FOR UPDATE TO authenticated
   USING (owner_id = auth.uid() OR public.has_role(auth.uid(), 'ceo'))
   WITH CHECK (owner_id = auth.uid() OR public.has_role(auth.uid(), 'ceo'));
 CREATE POLICY "CEO can delete contacts" ON public.crm_contacts
   FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'ceo'));
-
 CREATE TRIGGER crm_contacts_touch BEFORE UPDATE ON public.crm_contacts
 FOR EACH ROW EXECUTE FUNCTION public.tg_touch_updated_at();
 
--- ───────────────────────── Team ─────────────────────────
 CREATE TABLE public.team_members (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
@@ -172,18 +152,15 @@ CREATE TABLE public.team_members (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.team_members TO authenticated;
 GRANT ALL ON public.team_members TO service_role;
-
+ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "CEO can manage team" ON public.team_members
   FOR ALL TO authenticated
   USING (public.has_role(auth.uid(), 'ceo')) WITH CHECK (public.has_role(auth.uid(), 'ceo'));
-
 CREATE TRIGGER team_members_touch BEFORE UPDATE ON public.team_members
 FOR EACH ROW EXECUTE FUNCTION public.tg_touch_updated_at();
 
--- ───────────────────────── Existing tables: let the CEO correct sales entries ─────────────────────────
 GRANT UPDATE, DELETE ON public.sales_imports TO authenticated;
 CREATE POLICY "CEO can update sales" ON public.sales_imports
   FOR UPDATE TO authenticated
