@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireCeo } from "./auth-guard";
 
 /**
  * Triggers the sync-meta-ads edge function from the server (not the browser),
@@ -15,6 +16,7 @@ import { z } from "zod";
  * the edge function defaults to the last 7 days.
  */
 export const triggerMetaSync = createServerFn({ method: "POST" })
+  .middleware([requireCeo])
   .inputValidator((input: { since?: string; until?: string } | undefined) =>
     z.object({ since: z.string().optional(), until: z.string().optional() }).parse(input ?? {}),
   )

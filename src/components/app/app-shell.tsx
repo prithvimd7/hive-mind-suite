@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   LayoutDashboard, TrendingUp, Megaphone, Factory, Package, Wallet,
   Users, UserSquare2, Sparkles, Search, Bell, Sun, Moon, Menu, Command as CmdIcon, Plug,
-  Plus, LogOut,
+  Plus, LogOut, Download, UserPlus, AlertTriangle,
 } from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
@@ -13,8 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { AIAssistant } from "./ai-assistant";
-import { notifications } from "@/lib/mock-data";
+import { AIAssistant, AdvisorProvider, useAdvisorChat } from "./ai-assistant";
+import { useBusinessSnapshot } from "@/hooks/use-business-snapshot";
+import { exportSalesCsv } from "@/lib/csv-export";
+import { toast } from "sonner";
 import { useRole, type AppRole } from "@/hooks/use-role";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -30,7 +32,7 @@ export const NAV: readonly NavItem[] = [
   { to: "/production",   label: "Production",   icon: Factory,         hint: "Batches & yield",    roles: ["ceo"] },
   { to: "/inventory",    label: "Inventory",    icon: Package,         hint: "Stock & reorder",    roles: ["ceo"] },
   { to: "/finance",      label: "Finance",      icon: Wallet,          hint: "P&L & cash",         roles: ["ceo"] },
-  { to: "/crm",          label: "CRM",          icon: UserSquare2,     hint: "Leads & pipeline",   roles: ["ceo"] },
+  { to: "/crm",          label: "CRM",          icon: UserSquare2,     hint: "Leads & pipeline",   roles: ["ceo", "salesperson"] },
   { to: "/team",         label: "Team",         icon: Users,           hint: "HR & KPIs",          roles: ["ceo"] },
   { to: "/ai",           label: "AI Advisor",   icon: Sparkles,        hint: "Ask anything",       roles: ["ceo", "salesperson"] },
   { to: "/entry",        label: "Add Sales",    icon: Plus,            hint: "Manual entry",       roles: ["ceo", "salesperson"] },
@@ -92,21 +94,34 @@ function SidebarContent({ onNavigate, role }: { onNavigate?: () => void; role: A
 
 
 export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <AdvisorProvider>
+      <Shell>{children}</Shell>
+    </AdvisorProvider>
+  );
+}
+
+function Shell({ children }: { children: ReactNode }) {
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
+  const { open: aiOpen, setOpen: setAiOpen } = useAdvisorChat();
   const [dark, setDark] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { role, email, name, avatar } = useRole();
+  const isAuthPage = pathname === "/auth";
+  const snapshot = useBusinessSnapshot({ enabled: !isAuthPage && role === "ceo" });
+  const alerts = snapshot.data?.alerts ?? [];
+  const visibleNav = NAV.filter((n) => !n.roles || (role && n.roles.includes(role)));
+  const go = (to: string) => { setCmdOpen(false); navigate({ to }); };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCmdOpen((v) => !v); }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") { e.preventDefault(); setAiOpen((v) => !v); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") { e.preventDefault(); setAiOpen(!aiOpen); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [aiOpen, setAiOpen]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -118,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   // Public routes render bare (no shell chrome)
-  if (pathname === "/auth") {
+  if (isAuthPage) {
     return <div className="min-h-screen bg-background text-foreground">{children}</div>;
   }
 
@@ -165,18 +180,32 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-4 w-4" />
-                    <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-destructive" />
+                    {alerts.length > 0 && <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-destructive" />}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-80">
                   <DropdownMenuLabel>Notifications</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {notifications.map((n) => (
-                    <DropdownMenuItem key={n.id} className="flex-col items-start gap-0.5 py-2">
-                      <div className="text-sm">{n.title}</div>
-                      <div className="text-[11px] text-muted-foreground">{n.time} ago</div>
-                    </DropdownMenuItem>
-                  ))}
+                  {alerts.length === 0 ? (
+                    <div className="px-2 py-6 text-center text-xs text-muted-foreground">You're all caught up.</div>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                      {alerts.slice(0, 15).map((n) => (
+                        <DropdownMenuItem key={n.id} onSelect={() => navigate({ to: n.to })} className="items-start gap-2 py-2">
+                          <AlertTriangle
+                            className={cn(
+                              "h-3.5 w-3.5 mt-0.5 shrink-0",
+                              n.kind === "destructive" ? "text-destructive" : n.kind === "warning" ? "text-[color:var(--warning)]" : "text-muted-foreground",
+                            )}
+                          />
+                          <div className="min-w-0">
+                            <div className="text-sm">{n.title}</div>
+                            {n.detail && <div className="text-[11px] text-muted-foreground">{n.detail}</div>}
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -226,11 +255,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <CommandList>
           <CommandEmpty>No results.</CommandEmpty>
           <CommandGroup heading="Navigate">
-            {NAV.map((n) => (
-              <CommandItem
-                key={n.to}
-                onSelect={() => { setCmdOpen(false); window.history.pushState({}, "", n.to); window.dispatchEvent(new PopStateEvent("popstate")); }}
-              >
+            {visibleNav.map((n) => (
+              <CommandItem key={n.to} onSelect={() => go(n.to)}>
                 <n.icon className="h-4 w-4" />
                 <span>{n.label}</span>
                 <span className="ml-auto text-xs text-muted-foreground">{n.hint}</span>
@@ -242,14 +268,24 @@ export function AppShell({ children }: { children: ReactNode }) {
             <CommandItem onSelect={() => { setCmdOpen(false); setAiOpen(true); }}>
               <Sparkles className="h-4 w-4" /> Ask the AI advisor
             </CommandItem>
-            <CommandItem><CmdIcon className="h-4 w-4" /> Generate weekly report</CommandItem>
-            <CommandItem><CmdIcon className="h-4 w-4" /> Export CSV — Sales</CommandItem>
-            <CommandItem><CmdIcon className="h-4 w-4" /> Add reorder alert</CommandItem>
+            <CommandItem onSelect={() => go("/entry")}><Plus className="h-4 w-4" /> Add a sale</CommandItem>
+            <CommandItem onSelect={() => go("/crm")}><UserPlus className="h-4 w-4" /> Add a CRM contact</CommandItem>
+            {role === "ceo" && (
+              <>
+                <CommandItem onSelect={() => go("/production")}><Factory className="h-4 w-4" /> Log a production batch</CommandItem>
+                <CommandItem onSelect={() => go("/inventory")}><CmdIcon className="h-4 w-4" /> Set reorder levels</CommandItem>
+                <CommandItem
+                  onSelect={() => { setCmdOpen(false); exportSalesCsv(90).then(() => toast.success("Sales CSV downloaded")).catch((e) => toast.error(e.message)); }}
+                >
+                  <Download className="h-4 w-4" /> Export CSV — Sales (90 days)
+                </CommandItem>
+              </>
+            )}
           </CommandGroup>
         </CommandList>
       </CommandDialog>
 
-      <AIAssistant open={aiOpen} onOpenChange={setAiOpen} />
+      <AIAssistant />
     </div>
   );
 }

@@ -56,6 +56,311 @@ export type Database = {
         }
         Relationships: []
       }
+      production_batches: {
+        Row: {
+          batch_code: string
+          batch_date: string
+          created_at: string
+          created_by: string | null
+          downtime_minutes: number
+          id: string
+          line_id: string | null
+          notes: string | null
+          product_id: string | null
+          protein_pct: number | null
+          qc_status: string
+          rejects: number
+          units_planned: number
+          units_produced: number
+          updated_at: string
+        }
+        Insert: {
+          batch_code: string
+          batch_date?: string
+          created_at?: string
+          created_by?: string | null
+          downtime_minutes?: number
+          id?: string
+          line_id?: string | null
+          notes?: string | null
+          product_id?: string | null
+          protein_pct?: number | null
+          qc_status?: string
+          rejects?: number
+          units_planned?: number
+          units_produced?: number
+          updated_at?: string
+        }
+        Update: {
+          batch_code?: string
+          batch_date?: string
+          created_at?: string
+          created_by?: string | null
+          downtime_minutes?: number
+          id?: string
+          line_id?: string | null
+          notes?: string | null
+          product_id?: string | null
+          protein_pct?: number | null
+          qc_status?: string
+          rejects?: number
+          units_planned?: number
+          units_produced?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_batches_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "production_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          created_at: string
+          expiry_date: string | null
+          id: string
+          item_type: string
+          name: string
+          product_id: string | null
+          reorder_level: number
+          sku: string
+          stock: number
+          unit: string
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          item_type?: string
+          name: string
+          product_id?: string | null
+          reorder_level?: number
+          sku: string
+          stock?: number
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          item_type?: string
+          name?: string
+          product_id?: string | null
+          reorder_level?: number
+          sku?: string
+          stock?: number
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          due_date: string | null
+          expense_date: string
+          gst_amount: number
+          id: string
+          is_cogs: boolean
+          notes: string | null
+          status: string
+          vendor: string | null
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          due_date?: string | null
+          expense_date?: string
+          gst_amount?: number
+          id?: string
+          is_cogs?: boolean
+          notes?: string | null
+          status?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          due_date?: string | null
+          expense_date?: string
+          gst_amount?: number
+          id?: string
+          is_cogs?: boolean
+          notes?: string | null
+          status?: string
+          vendor?: string | null
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          customer: string
+          due_date: string | null
+          gst_amount: number
+          id: string
+          invoice_no: string
+          issue_date: string
+          notes: string | null
+          paid_on: string | null
+          status: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          customer: string
+          due_date?: string | null
+          gst_amount?: number
+          id?: string
+          invoice_no: string
+          issue_date?: string
+          notes?: string | null
+          paid_on?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer?: string
+          due_date?: string | null
+          gst_amount?: number
+          id?: string
+          invoice_no?: string
+          issue_date?: string
+          notes?: string | null
+          paid_on?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      crm_contacts: {
+        Row: {
+          city: string | null
+          company: string | null
+          contact_type: string
+          created_at: string
+          deal_value: number
+          email: string | null
+          id: string
+          name: string
+          next_follow_up: string | null
+          notes: string | null
+          owner_id: string | null
+          phone: string | null
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          company?: string | null
+          contact_type?: string
+          created_at?: string
+          deal_value?: number
+          email?: string | null
+          id?: string
+          name: string
+          next_follow_up?: string | null
+          notes?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          stage?: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          company?: string | null
+          contact_type?: string
+          created_at?: string
+          deal_value?: number
+          email?: string | null
+          id?: string
+          name?: string
+          next_follow_up?: string | null
+          notes?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          attendance: string
+          created_at: string
+          department: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          joined_on: string | null
+          kpi_score: number
+          monthly_target: number | null
+          name: string
+          phone: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendance?: string
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          joined_on?: string | null
+          kpi_score?: number
+          monthly_target?: number | null
+          name: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendance?: string
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          joined_on?: string | null
+          kpi_score?: number
+          monthly_target?: number | null
+          name?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       data_sources: {
         Row: {
           config: Json

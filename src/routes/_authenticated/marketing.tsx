@@ -5,7 +5,7 @@ import { SectionCard } from "@/components/app/section-card";
 import { EmptyState } from "@/components/app/empty-state";
 import { AdSpendDialog } from "@/components/app/ad-spend-dialog";
 import { Donut } from "@/components/app/charts";
-import { currency } from "@/lib/mock-data";
+import { currency } from "@/lib/format";
 import { useMarketingData } from "@/hooks/use-marketing-data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";

@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { today } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/entry")({
   head: () => ({ meta: [
@@ -20,7 +22,8 @@ export const Route = createFileRoute("/_authenticated/entry")({
 });
 
 function EntryPage() {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const qc = useQueryClient();
+  const [date, setDate] = useState(today());
   const [channel, setChannel] = useState("Offline");
   const [orders, setOrders] = useState("");
   const [revenue, setRevenue] = useState("");
@@ -42,6 +45,8 @@ function EntryPage() {
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Sales entry added");
+    qc.invalidateQueries({ queryKey: ["sales_imports"] });
+    qc.invalidateQueries({ queryKey: ["business_snapshot"] });
     setOrders(""); setRevenue(""); setExternalId("");
   }
 
