@@ -67,11 +67,12 @@ const CATALOG: Source[] = [
     kind: "shopify", label: "Shopify", icon: ShoppingBag, dataset: "sales",
     blurb: "Daily revenue and orders from your Shopify store (test and cancelled orders excluded).",
     live: {
-      secrets: ["SHOPIFY_STORE_DOMAIN", "SHOPIFY_ACCESS_TOKEN"],
+      secrets: ["SHOPIFY_STORE_DOMAIN", "SHOPIFY_CLIENT_ID", "SHOPIFY_CLIENT_SECRET"],
       steps: [
-        "Shopify admin → Settings → Apps and sales channels → Develop apps → Create an app.",
-        "Admin API scopes: read_orders (add read_all_orders to sync history older than 60 days). Install the app.",
-        "Copy the Admin API access token → SHOPIFY_ACCESS_TOKEN. Your xxx.myshopify.com domain → SHOPIFY_STORE_DOMAIN.",
+        "Shopify admin → Settings → Apps → Develop apps → Build apps in Dev Dashboard → Create app.",
+        "Create a version with Admin API scope read_orders (add read_all_orders for history older than 60 days), release it, then install the app on your store.",
+        "App settings → Client ID → SHOPIFY_CLIENT_ID, Client secret → SHOPIFY_CLIENT_SECRET. Your xxx.myshopify.com domain → SHOPIFY_STORE_DOMAIN.",
+        "Already have a custom app made before 2026? Set its shpat_… token as SHOPIFY_ACCESS_TOKEN instead.",
       ],
     },
   },
