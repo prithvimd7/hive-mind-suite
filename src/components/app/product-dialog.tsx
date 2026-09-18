@@ -77,27 +77,27 @@ export function ProductDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="sku">SKU</Label>
-              <Input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="KT-CBB-002" />
+              <Input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} />
             </div>
             <div>
               <Label htmlFor="category">Category</Label>
-              <Input id="category" value={category ?? ""} onChange={(e) => setCategory(e.target.value)} placeholder="Bone Broth" />
+              <Input id="category" value={category ?? ""} onChange={(e) => setCategory(e.target.value)} />
             </div>
           </div>
 
           <div>
             <Label htmlFor="name">Name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Chicken Bone Broth" />
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="unitCost">Unit cost (₹)</Label>
-              <Input id="unitCost" type="number" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="120" />
+              <Input id="unitCost" type="number" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} />
             </div>
             <div>
               <Label htmlFor="retailPrice">Retail price (₹)</Label>
-              <Input id="retailPrice" type="number" value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} placeholder="349" />
+              <Input id="retailPrice" type="number" value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} />
             </div>
           </div>
 

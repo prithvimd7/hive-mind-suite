@@ -7,6 +7,7 @@ import { AdSpendDialog } from "@/components/app/ad-spend-dialog";
 import { Donut } from "@/components/app/charts";
 import { currency } from "@/lib/format";
 import { useMarketingData } from "@/hooks/use-marketing-data";
+import { RecentAdSpend } from "@/components/app/recent-entries";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,7 +43,7 @@ function Marketing() {
         <SectionCard title="No ad spend data yet">
           <EmptyState
             title="No ad spend recorded in the last 30 days"
-            description="Add an entry manually, or connect Meta / Amazon Ads from Integrations to pull it in automatically."
+            description="Add an entry manually, or sync Meta, Google or Amazon Ads from Integrations."
             ctaLabel="Add ad spend"
             ctaTo="/integrations"
           />
@@ -101,10 +102,14 @@ function Marketing() {
       )}
 
       <div className="mt-4">
+        <RecentAdSpend />
+      </div>
+
+      <div className="mt-4">
         <SectionCard title="Connect live ad accounts">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm text-muted-foreground max-w-md">
-              Meta Ads and Amazon Ads can sync spend automatically once connected — no manual entry needed.
+              Meta Ads, Google Ads and Amazon Ads sync spend automatically once their keys are set — no manual entry needed.
             </p>
             <Button asChild size="sm" variant="outline">
               <Link to="/integrations">Go to Integrations</Link>

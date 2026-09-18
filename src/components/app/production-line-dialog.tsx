@@ -71,13 +71,13 @@ export function ProductionLineDialog({
         <div className="space-y-3">
           <div>
             <Label htmlFor="lineName">Name</Label>
-            <Input id="lineName" value={name} onChange={(e) => setName(e.target.value)} placeholder="Retort Line 1" />
+            <Input id="lineName" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="capacity">Capacity (units/day)</Label>
-              <Input id="capacity" type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="250" />
+              <Input id="capacity" type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
             </div>
             <div>
               <Label htmlFor="status">Status</Label>
@@ -94,7 +94,7 @@ export function ProductionLineDialog({
 
           <div>
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} placeholder="Autoclave, 121°C / 15 PSI / 35 min hold" />
+            <Textarea id="notes" value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
 

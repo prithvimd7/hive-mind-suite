@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { Json } from "@/integrations/supabase/types";
 import { requireCeo, requireUser } from "./auth-guard";
 
 const SourceKind = z.enum([
@@ -8,6 +7,7 @@ const SourceKind = z.enum([
   "amazon_seller",
   "meta_ads",
   "amazon_ads",
+  "google_ads",
   "blinkit",
   "offline",
 ]);
@@ -21,29 +21,6 @@ export const listDataSources = createServerFn({ method: "GET" })
       .order("label");
     if (error) throw new Error(error.message);
     return data ?? [];
-  });
-
-export const setSourceStatus = createServerFn({ method: "POST" })
-  .middleware([requireCeo])
-  .inputValidator((v: { kind: string; status: string; config?: Record<string, unknown> }) =>
-    z.object({
-      kind: SourceKind,
-      status: z.enum(["connected", "disconnected", "pending", "error"]),
-      config: z.record(z.string(), z.unknown()).optional(),
-    }).parse(v),
-  )
-  .handler(async ({ data, context }) => {
-    const patch: { status: string; config?: Json; last_synced_at?: string } = {
-      status: data.status,
-    };
-    if (data.config) patch.config = data.config as Json;
-    if (data.status === "connected") patch.last_synced_at = new Date().toISOString();
-    const { error } = await context.supabase
-      .from("data_sources")
-      .update(patch)
-      .eq("kind", data.kind);
-    if (error) throw new Error(error.message);
-    return { ok: true };
   });
 
 const SalesRow = z.object({
@@ -90,10 +67,20 @@ export const importAdRows = createServerFn({ method: "POST" })
     z.object({ platform: SourceKind, rows: z.array(AdRow).max(5000) }).parse(v),
   )
   .handler(async ({ data, context }) => {
-    const payload = data.rows.map((r) => ({ ...r, platform: data.platform }));
+    // One row per platform+campaign+day: merge duplicates in the file, then upsert so
+    // re-uploading the same export updates rows instead of failing or double counting.
+    const merged = new Map<string, z.infer<typeof AdRow> & { campaign: string; platform: string }>();
+    for (const r of data.rows) {
+      const campaign = r.campaign?.trim() || "Unnamed campaign";
+      const key = `${campaign}|${r.spend_date}`;
+      const m = merged.get(key);
+      if (!m) { merged.set(key, { ...r, campaign, platform: data.platform }); continue; }
+      m.spend += r.spend; m.revenue += r.revenue; m.impressions += r.impressions; m.clicks += r.clicks; m.conversions += r.conversions;
+    }
+    const payload = [...merged.values()];
     const { error, count } = await context.supabase
       .from("ad_spend_imports")
-      .insert(payload, { count: "exact" });
+      .upsert(payload, { onConflict: "platform,campaign,spend_date", count: "exact" });
     if (error) throw new Error(error.message);
     const { error: sourceError } = await context.supabase
       .from("data_sources")

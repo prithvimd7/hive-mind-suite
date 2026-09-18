@@ -58,14 +58,14 @@ function Inventory() {
   const visible = items.filter((i) => (filter === "all" ? true : filter === "low" ? isLowStock(i) : i.item_type === filter));
 
   const fields: Field[] = [
-    { name: "sku", label: "SKU", required: true, placeholder: "RAW-BONE-01" },
+    { name: "sku", label: "SKU", required: true },
     {
       name: "item_type", label: "Type", type: "select", required: true,
       options: Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })),
     },
-    { name: "name", label: "Name", required: true, full: true, placeholder: "Mutton bones" },
+    { name: "name", label: "Name", required: true, full: true },
     { name: "stock", label: "Current stock", type: "number", required: true, min: 0 },
-    { name: "unit", label: "Unit", required: true, placeholder: "kg / jars / units" },
+    { name: "unit", label: "Unit", required: true },
     { name: "reorder_level", label: "Reorder at", type: "number", required: true, min: 0 },
     { name: "unit_cost", label: "Unit cost (₹)", type: "number", min: 0 },
     { name: "expiry_date", label: "Expiry date", type: "date" },

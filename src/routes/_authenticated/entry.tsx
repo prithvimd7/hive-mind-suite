@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { today } from "@/lib/format";
+import { RecentSales } from "@/components/app/recent-entries";
+import { useRole } from "@/hooks/use-role";
 
 export const Route = createFileRoute("/_authenticated/entry")({
   head: () => ({ meta: [
@@ -23,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/entry")({
 
 function EntryPage() {
   const qc = useQueryClient();
+  const { role } = useRole();
   const [date, setDate] = useState(today());
   const [channel, setChannel] = useState("Offline");
   const [orders, setOrders] = useState("");
@@ -77,7 +80,7 @@ function EntryPage() {
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label>Reference / Order ID (optional)</Label>
-              <Input value={externalId} onChange={(e) => setExternalId(e.target.value)} placeholder="INV-1024" />
+              <Input value={externalId} onChange={(e) => setExternalId(e.target.value)} />
             </div>
             <div className="md:col-span-2 flex justify-end">
               <Button type="submit" disabled={busy} className="gap-1.5">
@@ -87,6 +90,7 @@ function EntryPage() {
           </form>
         </SectionCard>
       </div>
+      {role === "ceo" && <div className="mt-4"><RecentSales /></div>}
     </div>
   );
 }
