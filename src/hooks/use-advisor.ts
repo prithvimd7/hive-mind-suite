@@ -3,7 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { askAdvisor } from "@/lib/advisor.functions";
-import { fetchBusinessSnapshot } from "./use-business-snapshot";
+import { fetchBusinessSnapshot, snapshotKey } from "./use-business-snapshot";
+import { DEFAULT_RANGE, resolveRange } from "@/lib/date-range";
 import { isoDaysAgo } from "@/lib/format";
 
 export type AdvisorMsg = { role: "user" | "assistant"; content: string; error?: boolean };
@@ -16,8 +17,9 @@ const GREETING: AdvisorMsg = {
 /** Collects a compact JSON snapshot of everything the signed-in user can see, for grounding the model. */
 async function gatherContext(qc: ReturnType<typeof useQueryClient>) {
   const since = isoDaysAgo(90);
+  const last30 = resolveRange(DEFAULT_RANGE);
   const [snapshot, sales, ads, products, inventory, batches, contacts, team] = await Promise.all([
-    qc.fetchQuery({ queryKey: ["business_snapshot"], queryFn: fetchBusinessSnapshot, staleTime: 60_000 }),
+    qc.fetchQuery({ queryKey: snapshotKey(last30), queryFn: () => fetchBusinessSnapshot(last30), staleTime: 60_000 }),
     supabase.from("sales_imports").select("order_date, channel, revenue, orders").gte("order_date", since).order("order_date"),
     supabase.from("ad_spend_imports").select("spend_date, platform, campaign, spend, revenue, clicks, impressions, conversions").gte("spend_date", since),
     supabase.from("products").select("sku, name, category, unit_cost, retail_price, is_active"),
@@ -45,9 +47,10 @@ async function gatherContext(qc: ReturnType<typeof useQueryClient>) {
     dailySales.set(k, d);
   }
 
-  const { forecast, cashTrend: _cashTrend, ...kpis } = snapshot;
+  const { forecast, cashTrend: _cashTrend, alerts, ...kpis } = snapshot;
   return JSON.stringify({
     kpis_last_30_days: kpis,
+    open_alerts: alerts,
     forecast_next_30_days: forecast ? { total: forecast.next30, daily_trend_slope: Math.round(forecast.dailySlope), days_of_history: forecast.daysOfHistory } : "not enough history (needs 14+ days)",
     daily_sales_by_channel_last_90_days: [...dailySales.values()],
     ad_campaigns_last_90_days: [...campaigns.values()].map((c) => ({ ...c, roas: c.spend ? +(c.revenue / c.spend).toFixed(2) : null })),

@@ -13,6 +13,8 @@ import { exportSalesCsv } from "@/lib/csv-export";
 import { Download, AlertTriangle, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DateRangePicker } from "@/components/app/date-range-picker";
+import { DEFAULT_RANGE, RANGE_KEYS, RANGE_PRESETS, formatRange, resolveRange, type RangeKey } from "@/lib/date-range";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({ meta: [
@@ -21,48 +23,60 @@ export const Route = createFileRoute("/_authenticated/")({
     { property: "og:title", content: "Executive — Company OS" },
     { property: "og:description", content: "Executive overview across the business." },
   ]}),
+  validateSearch: (search: Record<string, unknown>): { range?: RangeKey } =>
+    RANGE_KEYS.includes(search.range as RangeKey) ? { range: search.range as RangeKey } : {},
   component: Executive,
 });
 
 function Executive() {
-  const { data, isLoading } = useSalesData(30);
-  const snap = useBusinessSnapshot();
+  const navigate = Route.useNavigate();
+  const rangeKey = Route.useSearch().range ?? DEFAULT_RANGE;
+  const range = resolveRange(rangeKey);
+  const short = RANGE_PRESETS[rangeKey].short;
+  const setRange = (k: RangeKey) => navigate({ search: k === DEFAULT_RANGE ? {} : { range: k }, replace: true });
+
+  const { data, isLoading } = useSalesData(range);
+  const snap = useBusinessSnapshot({ range });
   const s = snap.data;
   const loading = isLoading || snap.isLoading;
+  const vsPrev = s ? `vs ${formatRange(s.prevRange)}` : undefined;
 
   return (
     <div>
       <PageHeader
         title="Executive Dashboard"
-        description="Last 30 days across sales, marketing, production, inventory and finance."
+        description={`${RANGE_PRESETS[rangeKey].label} (${formatRange(range)}) across sales, marketing, production, inventory and finance.`}
         actions={
-          <Button
-            size="sm"
-            className="gap-1.5"
-            onClick={() => exportSalesCsv(90).catch((e) => toast.error(e.message))}
-          >
-            <Download className="h-3.5 w-3.5" />Export sales
-          </Button>
+          <>
+            <DateRangePicker value={rangeKey} onChange={setRange} />
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => exportSalesCsv(range).catch((e) => toast.error(e.message))}
+            >
+              <Download className="h-3.5 w-3.5" />Export sales
+            </Button>
+          </>
         }
       />
 
-      <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className={cn("grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 transition-opacity", (snap.isPlaceholderData || snap.isFetching) && !loading && "opacity-60")}>
         {loading || !s ? (
           Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-2xl" />)
         ) : (
           <>
-            <KpiCard label="Revenue (30d)"   value={currency(s.revenue)} delta={delta(s.revenue, s.prevRevenue)} to="/sales" hint="vs previous 30d" />
-            <KpiCard label="Orders (30d)"    value={compact(s.orders)} to="/sales" />
-            <KpiCard label="Avg Order Value" value={currency(Math.round(data?.aov ?? 0))} to="/sales" />
+            <KpiCard label={`Revenue (${short})`} value={currency(s.revenue)} delta={delta(s.revenue, s.prevRevenue)} to="/sales" hint={vsPrev} />
+            <KpiCard label={`Orders (${short})`}  value={compact(s.orders)} delta={delta(s.orders, s.prevOrders)} to="/sales" hint={vsPrev} />
+            <KpiCard label="Avg Order Value" value={currency(Math.round(s.orders ? s.revenue / s.orders : 0))} to="/sales" />
             <KpiCard label="Net Profit"      value={currency(s.netProfit)} to="/finance" hint="Revenue − expenses − ad spend" />
             <KpiCard label="Gross Margin"    value={pct(s.grossMargin)} to="/finance" hint={s.cogs ? "After COGS expenses" : "Log COGS expenses to refine"} />
             <KpiCard label="Net Margin"      value={pct(s.netMargin)} to="/finance" />
-            <KpiCard label="Cash Flow (30d)" value={currency(s.cashFlow)} to="/finance" hint="Sales − paid bills − ads" />
-            <KpiCard label="Ad Spend (30d)"  value={currency(s.adSpend)} to="/marketing" />
-            <KpiCard label="Inventory Value" value={currency(s.inventoryValue)} to="/inventory" hint="Stock × unit cost" />
-            <KpiCard label="Units Produced"  value={compact(s.unitsProduced)} delta={delta(s.unitsProduced, s.prevUnitsProduced)} to="/production" hint="Last 30 days" />
-            <KpiCard label="Receivables"     value={currency(s.receivables)} to="/finance" hint="Unpaid invoices" />
-            <KpiCard label="Payables"        value={currency(s.payables)} to="/finance" hint="Unpaid bills" />
+            <KpiCard label={`Cash Flow (${short})`} value={currency(s.cashFlow)} to="/finance" hint="Sales − paid bills − ads" />
+            <KpiCard label={`Ad Spend (${short})`}  value={currency(s.adSpend)} delta={delta(s.adSpend, s.prevAdSpend)} to="/marketing" hint={vsPrev} />
+            <KpiCard label="Inventory Value" value={currency(s.inventoryValue)} to="/inventory" hint="Stock × unit cost, as of now" />
+            <KpiCard label={`Units Produced (${short})`} value={compact(s.unitsProduced)} delta={delta(s.unitsProduced, s.prevUnitsProduced)} to="/production" hint={vsPrev} />
+            <KpiCard label="Receivables"     value={currency(s.receivables)} to="/finance" hint="Unpaid invoices, as of now" />
+            <KpiCard label="Payables"        value={currency(s.payables)} to="/finance" hint="Unpaid bills, as of now" />
           </>
         )}
       </div>
@@ -92,7 +106,7 @@ function Executive() {
       )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <SectionCard title="Revenue trend" description="Last 30 days, from real sales entries" className="lg:col-span-2">
+        <SectionCard title="Revenue trend" description={`${RANGE_PRESETS[rangeKey].label}${data && data.revenueTrend.length && data.revenueTrend[0].label.startsWith("w/c") ? ", weekly" : ""}`} className="lg:col-span-2">
           {isLoading ? (
             <Skeleton className="h-[280px] rounded-xl" />
           ) : data?.hasData ? (
@@ -130,7 +144,7 @@ function Executive() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <SectionCard title="Revenue by channel" description="Last 30 days">
+        <SectionCard title="Revenue by channel" description={RANGE_PRESETS[rangeKey].label}>
           {isLoading ? (
             <Skeleton className="h-[280px] rounded-xl" />
           ) : data?.hasData ? (
