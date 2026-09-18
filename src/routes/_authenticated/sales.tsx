@@ -4,7 +4,7 @@ import { KpiCard } from "@/components/app/kpi-card";
 import { SectionCard } from "@/components/app/section-card";
 import { EmptyState } from "@/components/app/empty-state";
 import { BarsChart, RevenueArea } from "@/components/app/charts";
-import { currency, compact } from "@/lib/mock-data";
+import { currency, compact } from "@/lib/format";
 import { useSalesData } from "@/hooks/use-sales-data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";

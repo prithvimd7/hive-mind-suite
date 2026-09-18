@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { Json } from "@/integrations/supabase/types";
+import { requireCeo, requireUser } from "./auth-guard";
 
 const SourceKind = z.enum([
   "shopify",
@@ -11,7 +12,9 @@ const SourceKind = z.enum([
   "offline",
 ]);
 
-export const listDataSources = createServerFn({ method: "GET" }).handler(async () => {
+export const listDataSources = createServerFn({ method: "GET" })
+  .middleware([requireUser])
+  .handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("data_sources")
@@ -22,6 +25,7 @@ export const listDataSources = createServerFn({ method: "GET" }).handler(async (
 });
 
 export const setSourceStatus = createServerFn({ method: "POST" })
+  .middleware([requireCeo])
   .inputValidator((v: { kind: string; status: string; config?: Record<string, unknown> }) =>
     z.object({
       kind: SourceKind,
@@ -54,6 +58,7 @@ const SalesRow = z.object({
 });
 
 export const importSalesRows = createServerFn({ method: "POST" })
+  .middleware([requireUser])
   .inputValidator((v: { source: string; rows: unknown[] }) =>
     z.object({ source: SourceKind, rows: z.array(SalesRow).max(5000) }).parse(v),
   )
@@ -82,6 +87,7 @@ const AdRow = z.object({
 });
 
 export const importAdRows = createServerFn({ method: "POST" })
+  .middleware([requireCeo])
   .inputValidator((v: { platform: string; rows: unknown[] }) =>
     z.object({ platform: SourceKind, rows: z.array(AdRow).max(5000) }).parse(v),
   )
@@ -99,7 +105,9 @@ export const importAdRows = createServerFn({ method: "POST" })
     return { inserted: count ?? payload.length };
   });
 
-export const getIntegrationsSummary = createServerFn({ method: "GET" }).handler(async () => {
+export const getIntegrationsSummary = createServerFn({ method: "GET" })
+  .middleware([requireUser])
+  .handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const [sales, ads] = await Promise.all([
     supabaseAdmin.from("sales_imports").select("source", { count: "exact", head: true }),

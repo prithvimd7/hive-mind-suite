@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useProducts, useDeleteProduct } from "@/hooks/use-products";
 import { useProductionLines, useDeleteProductionLine } from "@/hooks/use-production-lines";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { BatchesSection, useBatchKpis } from "@/components/app/batches-section";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/production")({
@@ -29,17 +30,21 @@ function Production() {
   const { data: lines, isLoading: linesLoading } = useProductionLines();
   const deleteProduct = useDeleteProduct();
   const deleteLine = useDeleteProductionLine();
+  const kpis = useBatchKpis(lines ?? []);
 
   return (
     <div>
       <PageHeader title="Production" description="Products, production lines, batches and quality." />
 
-      {/* Daily production KPIs need a production_batches table + logging, which isn't built yet */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
-        <KpiCard label="Products"        value={productsLoading ? "…" : String(products?.length ?? 0)} hint="Live" />
-        <KpiCard label="Production lines" value={linesLoading ? "…" : String(lines?.length ?? 0)} hint="Live" />
-        <KpiCard label="Today's production" value="—" hint="Needs batch logging" />
-        <KpiCard label="Machine util."      value="—" hint="Needs batch logging" />
+        <KpiCard label="Products"        value={productsLoading ? "…" : String(products?.length ?? 0)} />
+        <KpiCard label="Production lines" value={linesLoading ? "…" : String(lines?.length ?? 0)} />
+        <KpiCard label="Today's production"  value={kpis.today.toLocaleString("en-IN")} hint="Units, all lines" />
+        <KpiCard label="Capacity util. (7d)" value={kpis.utilization === null ? "—" : `${kpis.utilization.toFixed(0)}%`} hint="Produced ÷ line capacity" />
+        <KpiCard label="Units (30d)"         value={kpis.units30.toLocaleString("en-IN")} />
+        <KpiCard label="Yield (30d)"         value={kpis.yieldPct === null ? "—" : `${kpis.yieldPct.toFixed(1)}%`} hint="Good units ÷ (good + rejects)" />
+        <KpiCard label="Downtime (30d)"      value={`${(kpis.downtime30 / 60).toFixed(1)} h`} />
+        <KpiCard label="QC pass rate (30d)"  value={kpis.qcPass === null ? "—" : `${kpis.qcPass.toFixed(0)}%`} hint="Of batches with a QC result" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -170,12 +175,7 @@ function Production() {
       </div>
 
       <div className="mt-4">
-        <SectionCard title="Daily batches, yield & quality" description="Not built yet">
-          <EmptyState
-            title="Batch logging isn't wired up yet"
-            description="This needs a production_batches table plus a daily-entry form (units produced, yield %, protein %, downtime, rejects). Ask to have this built next."
-          />
-        </SectionCard>
+        <BatchesSection products={products ?? []} lines={lines ?? []} />
       </div>
     </div>
   );

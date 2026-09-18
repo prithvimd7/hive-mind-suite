@@ -1,99 +1,103 @@
-import { useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Send } from "lucide-react";
+import { Sparkles, Send, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ADVISOR_SUGGESTIONS, useAdvisor } from "@/hooks/use-advisor";
 
-const SUGGESTIONS = [
-  "Why were sales lower yesterday?",
-  "Which products have the highest profit?",
-  "Predict next month's sales.",
-  "Which marketing campaign is wasting money?",
-  "Which distributor is growing fastest?",
-  "What inventory should I reorder?",
-];
+type AdvisorState = ReturnType<typeof useAdvisor> & { open: boolean; setOpen: (v: boolean) => void };
 
-type Msg = { role: "user" | "ai"; text: string };
+const AdvisorCtx = createContext<AdvisorState | null>(null);
 
-function canned(q: string): string {
-  const s = q.toLowerCase();
-  if (s.includes("sales") && s.includes("lower")) return "Yesterday's revenue was ₹4.12L, 8.2% below trend. Main driver: Blinkit orders fell 24% after a stockout on Whey Isolate 1kg. Restocking today should recover ~₹68K.";
-  if (s.includes("highest profit")) return "Top margin SKUs: Electrolyte Mix (45%), Whey Isolate 1kg (42%), Protein Bar Cocoa (38%). Push Electrolyte Mix in Meta retargeting — CAC is 22% lower than average.";
-  if (s.includes("predict") || s.includes("next month")) return "Forecast for next month: ₹2.24Cr revenue (±6%), driven by wholesale + Amazon. Confidence 82%. Risk: production capacity is at 91% utilization.";
-  if (s.includes("wasting")) return "Google PMax is underperforming: ROAS 2.1x vs blended 3.9x. Recommend pausing and shifting ₹40K/day to Meta Retarget Q4 (ROAS 4.9x).";
-  if (s.includes("distributor")) return "NB Mart is growing fastest: +38% MoM, now ₹18L/mo. Consider extended credit terms and exclusive SKU allocation.";
-  if (s.includes("reorder")) return "Reorder now: Retort Chicken Meal (62 units, min 300), Whey Isolate 1kg (210, min 400), Cocoa Powder (120kg, min 200kg). Estimated PO value ₹6.8L.";
-  return "I'll analyze that across your sales, marketing, inventory, and finance data. (Connect Lovable Cloud + Lovable AI to enable live answers.)";
+/** One conversation shared by the ⌘J side sheet and the /ai page. */
+export function AdvisorProvider({ children }: { children: ReactNode }) {
+  const advisor = useAdvisor();
+  const [open, setOpen] = useState(false);
+  return <AdvisorCtx.Provider value={{ ...advisor, open, setOpen }}>{children}</AdvisorCtx.Provider>;
 }
 
-export function AIAssistant({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "ai", text: "Hi! I'm your AI business advisor. Ask about sales, inventory, campaigns, cash flow — anything." },
-  ]);
-  const [q, setQ] = useState("");
+export function useAdvisorChat() {
+  const ctx = useContext(AdvisorCtx);
+  if (!ctx) throw new Error("useAdvisorChat must be used inside AdvisorProvider");
+  return ctx;
+}
 
-  const send = (text: string) => {
-    if (!text.trim()) return;
-    setMsgs((m) => [...m, { role: "user", text }, { role: "ai", text: canned(text) }]);
-    setQ("");
-  };
+/** Message list + input. Fills its parent's height. */
+export function AdvisorChat({ className }: { className?: string }) {
+  const { msgs, busy, send, reset } = useAdvisorChat();
+  const [q, setQ] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs.length, busy]);
+
+  const submit = (text: string) => { send(text); setQ(""); };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <div className={cn("flex flex-col min-h-0", className)}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {msgs.map((m, i) => (
+          <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+            <div
+              className={cn(
+                "rounded-2xl px-3.5 py-2.5 text-sm max-w-[85%] leading-relaxed whitespace-pre-wrap",
+                m.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md",
+                m.error && "bg-destructive/10 text-destructive",
+              )}
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {busy && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5 text-sm text-muted-foreground inline-flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading your data…
+            </div>
+          </div>
+        )}
+
+        {msgs.length <= 1 && !busy && (
+          <div className="pt-2">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Try asking</div>
+            <div className="flex flex-wrap gap-2">
+              {ADVISOR_SUGGESTIONS.map((s) => (
+                <button key={s} onClick={() => submit(s)} className="text-xs rounded-full border px-3 py-1.5 hover:bg-accent transition text-left">
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      <form onSubmit={(e) => { e.preventDefault(); submit(q); }} className="p-3 border-t flex items-center gap-2 bg-card">
+        {msgs.length > 1 && (
+          <Button type="button" variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={reset} aria-label="New conversation" title="New conversation">
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        )}
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask the AI advisor…" className="h-10" disabled={busy} />
+        <Button type="submit" size="icon" className="h-10 w-10 shrink-0" disabled={busy || !q.trim()} aria-label="Send">
+          <Send className="h-4 w-4" />
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+export function AIAssistant() {
+  const { open, setOpen } = useAdvisorChat();
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
         <SheetHeader className="p-4 border-b">
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" /> AI Business Advisor
           </SheetTitle>
         </SheetHeader>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {msgs.map((m, i) => (
-            <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-              <div
-                className={cn(
-                  "rounded-2xl px-3.5 py-2.5 text-sm max-w-[85%] leading-relaxed",
-                  m.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md",
-                )}
-              >
-                {m.text}
-              </div>
-            </div>
-          ))}
-
-          {msgs.length <= 1 && (
-            <div className="pt-2">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Try asking</div>
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="text-xs rounded-full border px-3 py-1.5 hover:bg-accent transition"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <form
-          onSubmit={(e) => { e.preventDefault(); send(q); }}
-          className="p-3 border-t flex items-center gap-2 bg-card"
-        >
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Ask the AI advisor…"
-            className="h-10"
-          />
-          <Button type="submit" size="icon" className="h-10 w-10 shrink-0">
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
+        <AdvisorChat className="flex-1" />
       </SheetContent>
     </Sheet>
   );
