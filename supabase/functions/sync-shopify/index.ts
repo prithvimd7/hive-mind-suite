@@ -26,6 +26,21 @@ query Orders($cursor: String, $q: String!) {
   }
 }`;
 
+type ShopifyOrdersResponse = {
+  data?: {
+    orders?: {
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      nodes: Array<{
+        createdAt: string;
+        cancelledAt: string | null;
+        test: boolean;
+        currentTotalPriceSet?: { shopMoney?: { amount?: string; currencyCode?: string } };
+      }>;
+    };
+  };
+  errors?: string | Array<{ message?: string }>;
+};
+
 serveSync("shopify", async (req, db) => {
   const env = requireEnv("SHOPIFY_STORE_DOMAIN");
   const version = Deno.env.get("SHOPIFY_API_VERSION") ?? DEFAULT_API_VERSION;
@@ -39,17 +54,18 @@ serveSync("shopify", async (req, db) => {
   let cursor: string | null = null;
 
   do {
-    const res = await fetch(`https://${domain}/admin/api/${version}/graphql.json`, {
+    const res: Response = await fetch(`https://${domain}/admin/api/${version}/graphql.json`, {
       method: "POST",
       headers: { "X-Shopify-Access-Token": accessToken, "Content-Type": "application/json" },
       body: JSON.stringify({ query: QUERY, variables: { cursor, q } }),
     });
-    const body = await res.json().catch(() => ({}));
+    const body: ShopifyOrdersResponse = await res.json().catch(() => ({}));
     if (!res.ok || body.errors) {
       const msg = typeof body.errors === "string" ? body.errors : body.errors?.[0]?.message ?? `HTTP ${res.status}`;
       throw new Error(`Shopify API error: ${msg}`);
     }
-    const page = body.data.orders;
+    const page = body.data?.orders;
+    if (!page) throw new Error("Shopify API returned an invalid orders response.");
     for (const o of page.nodes) {
       if (o.test || o.cancelledAt) continue;
       const day = istDate(o.createdAt);
