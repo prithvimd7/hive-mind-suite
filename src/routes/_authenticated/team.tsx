@@ -34,8 +34,8 @@ const ATTENDANCE = [
 
 const fields: Field[] = [
   { name: "name", label: "Name", required: true },
-  { name: "role", label: "Role", placeholder: "Sales Lead" },
-  { name: "department", label: "Department", placeholder: "Sales / Production / Finance" },
+  { name: "role", label: "Role" },
+  { name: "department", label: "Department" },
   { name: "attendance", label: "Today", type: "select", required: true, options: ATTENDANCE },
   { name: "kpi_score", label: "KPI score (0–100)", type: "number", required: true, min: 0, max: 100 },
   { name: "monthly_target", label: "Monthly target (₹)", type: "number", min: 0 },

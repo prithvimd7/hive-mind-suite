@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export const PLATFORM_LABEL: Record<string, string> = {
+  meta_ads: "Meta Ads", google_ads: "Google Ads", amazon_ads: "Amazon Ads", other: "Other",
+};
+export const platformLabel = (p: string) => PLATFORM_LABEL[p] ?? p;
+
 export interface CampaignRow {
   name: string;
   platform: string;
@@ -65,12 +70,12 @@ export function useMarketingData(days = 30) {
       const conversions = data.reduce((a, r) => a + Number(r.conversions), 0);
 
       const byPlatformMap = new Map<string, number>();
-      for (const r of data) byPlatformMap.set(r.platform, (byPlatformMap.get(r.platform) ?? 0) + Number(r.spend));
+      for (const r of data) byPlatformMap.set(platformLabel(r.platform), (byPlatformMap.get(platformLabel(r.platform)) ?? 0) + Number(r.spend));
       const byPlatform = Array.from(byPlatformMap.entries()).map(([label, value]) => ({ label, value }));
 
       const campaignMap = new Map<string, CampaignRow>();
       for (const r of data) {
-        const key = `${r.platform} — ${r.campaign ?? "Unnamed"}`;
+        const key = `${platformLabel(r.platform)} — ${r.campaign ?? "Unnamed"}`;
         const cur = campaignMap.get(key) ?? {
           name: key, platform: r.platform, spend: 0, revenue: 0, roas: 0, clicks: 0, impressions: 0, conversions: 0,
         };

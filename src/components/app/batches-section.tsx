@@ -47,7 +47,7 @@ export function BatchesSection({ products, lines }: { products: Product[]; lines
   const lineName = (id: string | null) => lines.find((l) => l.id === id)?.name ?? "—";
 
   const fields: Field[] = [
-    { name: "batch_code", label: "Batch code", required: true, placeholder: "KT-240918-A" },
+    { name: "batch_code", label: "Batch code", required: true },
     { name: "batch_date", label: "Date", type: "date", required: true },
     { name: "product_id", label: "Product", type: "select", options: products.map((p) => ({ value: p.id, label: p.name })) },
     { name: "line_id", label: "Line", type: "select", options: lines.map((l) => ({ value: l.id, label: l.name })) },
@@ -55,12 +55,12 @@ export function BatchesSection({ products, lines }: { products: Product[]; lines
     { name: "units_produced", label: "Good units produced", type: "number", min: 0, required: true },
     { name: "rejects", label: "Rejects", type: "number", min: 0, required: true },
     { name: "downtime_minutes", label: "Downtime (min)", type: "number", min: 0, required: true },
-    { name: "protein_pct", label: "Protein %", type: "number", min: 0, max: 100, placeholder: "e.g. 9.5" },
+    { name: "protein_pct", label: "Protein %", type: "number", min: 0, max: 100 },
     {
       name: "qc_status", label: "QC status", type: "select", required: true,
       options: [{ value: "pending", label: "Pending" }, { value: "passed", label: "Passed" }, { value: "failed", label: "Failed" }],
     },
-    { name: "notes", label: "Notes", type: "textarea", placeholder: "Retort cycle, deviations, operator…" },
+    { name: "notes", label: "Notes", type: "textarea" },
   ];
 
   const defaults = { batch_date: today(), units_planned: 0, units_produced: 0, rejects: 0, downtime_minutes: 0, qc_status: "pending", line_id: lines[0]?.id };

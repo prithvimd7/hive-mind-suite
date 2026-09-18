@@ -9,181 +9,221 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import {
   ShoppingBag, Package, Megaphone, Store, FileSpreadsheet, Building2, CheckCircle2, Circle, Upload, RefreshCw,
+  AlertCircle, Clock, ChevronDown, Search,
 } from "lucide-react";
 import {
-  listDataSources, setSourceStatus, importSalesRows, importAdRows, getIntegrationsSummary,
+  listDataSources, importSalesRows, importAdRows, getIntegrationsSummary,
 } from "@/lib/integrations.functions";
-import { triggerMetaSync } from "@/lib/meta-sync.functions";
+import { triggerSync, type SyncKind } from "@/lib/sync.functions";
+import { useRole } from "@/hooks/use-role";
+import { isoDaysAgo, localIso, today } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
   head: () => ({ meta: [
     { title: "Integrations — Company OS" },
-    { name: "description", content: "Connect Shopify, Amazon Seller, Meta Ads, Blinkit and upload offline sales." },
+    { name: "description", content: "Connect Shopify, Amazon, Meta Ads, Google Ads, Blinkit and upload offline sales." },
     { property: "og:title", content: "Integrations — Company OS" },
     { property: "og:description", content: "Bring every data source into one dashboard." },
   ]}),
   component: Integrations,
 });
 
-type Kind = "shopify" | "amazon_seller" | "meta_ads" | "amazon_ads" | "blinkit" | "offline";
+type Kind = "shopify" | "amazon_seller" | "meta_ads" | "amazon_ads" | "google_ads" | "blinkit" | "offline";
 
-function ymd(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-function daysAgo(n: number) {
-  return new Date(Date.now() - n * 86400000);
-}
-
-const META_RANGE_PRESETS = {
-  last7: {
-    label: "Last 7 days",
-    compute: () => ({ since: ymd(daysAgo(7)), until: ymd(new Date()) }),
-  },
-  last30: {
-    label: "Last 30 days",
-    compute: () => ({ since: ymd(daysAgo(30)), until: ymd(new Date()) }),
-  },
-  last90: {
-    label: "Last 90 days",
-    compute: () => ({ since: ymd(daysAgo(90)), until: ymd(new Date()) }),
-  },
+const RANGE_PRESETS = {
+  last7:     { label: "Last 7 days",  compute: () => ({ since: isoDaysAgo(7), until: today() }) },
+  last30:    { label: "Last 30 days", compute: () => ({ since: isoDaysAgo(30), until: today() }) },
+  last90:    { label: "Last 90 days", compute: () => ({ since: isoDaysAgo(90), until: today() }) },
   thisMonth: {
     label: "This month",
-    compute: () => {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { since: ymd(start), until: ymd(now) };
-    },
+    compute: () => { const n = new Date(); return { since: localIso(new Date(n.getFullYear(), n.getMonth(), 1)), until: today() }; },
   },
   lastMonth: {
     label: "Last month",
     compute: () => {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { since: ymd(start), until: ymd(end) };
-    },
-  },
-  last3Months: {
-    label: "Last 3 months",
-    compute: () => {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-      return { since: ymd(start), until: ymd(now) };
+      const n = new Date();
+      return { since: localIso(new Date(n.getFullYear(), n.getMonth() - 1, 1)), until: localIso(new Date(n.getFullYear(), n.getMonth(), 0)) };
     },
   },
 } as const;
-type Mode = "oauth" | "api_key" | "csv";
+type RangeKey = keyof typeof RANGE_PRESETS;
 
-const CATALOG: {
-  kind: Kind; icon: React.ElementType; blurb: string; mode: Mode; dataset: "sales" | "ads" | "both";
-}[] = [
-  { kind: "shopify",       icon: ShoppingBag,     blurb: "Live orders, products and customers from your Shopify store.", mode: "oauth",   dataset: "sales" },
-  { kind: "amazon_seller", icon: Package,         blurb: "Orders, returns and inventory from Amazon Seller Central.",     mode: "api_key", dataset: "sales" },
-  { kind: "blinkit",       icon: Store,           blurb: "Blinkit Seller orders and daily payouts.",                       mode: "csv",     dataset: "sales" },
-  { kind: "offline",       icon: Building2,       blurb: "Retail, distributor and wholesale sales you record manually.",   mode: "csv",     dataset: "sales" },
-  { kind: "meta_ads",      icon: Megaphone,       blurb: "Spend and ROAS from Meta (Facebook + Instagram) ad accounts.",   mode: "oauth",   dataset: "ads" },
-  { kind: "amazon_ads",    icon: FileSpreadsheet, blurb: "Sponsored Products, Brands and Display spend from Amazon Ads.",  mode: "api_key", dataset: "ads" },
+interface Source {
+  kind: Kind;
+  label: string;
+  icon: React.ElementType;
+  blurb: string;
+  dataset: "sales" | "ads";
+  /** Present when a live sync edge function exists for this source. */
+  live?: { secrets: string[]; steps: string[] };
+}
+
+const CATALOG: Source[] = [
+  {
+    kind: "shopify", label: "Shopify", icon: ShoppingBag, dataset: "sales",
+    blurb: "Daily revenue and orders from your Shopify store (test and cancelled orders excluded).",
+    live: {
+      secrets: ["SHOPIFY_STORE_DOMAIN", "SHOPIFY_ACCESS_TOKEN"],
+      steps: [
+        "Shopify admin → Settings → Apps and sales channels → Develop apps → Create an app.",
+        "Admin API scopes: read_orders (add read_all_orders to sync history older than 60 days). Install the app.",
+        "Copy the Admin API access token → SHOPIFY_ACCESS_TOKEN. Your xxx.myshopify.com domain → SHOPIFY_STORE_DOMAIN.",
+      ],
+    },
+  },
+  {
+    kind: "amazon_seller", label: "Amazon Seller", icon: Package, dataset: "sales",
+    blurb: "Daily revenue and orders from Amazon.in Seller Central (cancelled orders excluded).",
+    live: {
+      secrets: ["AMAZON_SP_CLIENT_ID", "AMAZON_SP_CLIENT_SECRET", "AMAZON_SP_REFRESH_TOKEN"],
+      steps: [
+        "Seller Central → Apps and Services → Develop Apps → register as a private developer (Orders role).",
+        "Add a new app client (SP API) and note its LWA client id and secret.",
+        "Click Authorize on the app to get a refresh token, then set the three secrets.",
+      ],
+    },
+  },
+  { kind: "blinkit", label: "Blinkit", icon: Store, dataset: "sales", blurb: "Blinkit has no public seller API — upload the seller-panel CSV." },
+  { kind: "offline", label: "Offline", icon: Building2, dataset: "sales", blurb: "Retail, distributor and wholesale sales. Upload a CSV or use Add Sales." },
+  {
+    kind: "meta_ads", label: "Meta Ads", icon: Megaphone, dataset: "ads",
+    blurb: "Daily campaign spend, purchases and purchase value from Facebook + Instagram ads.",
+    live: {
+      secrets: ["META_ACCESS_TOKEN", "META_AD_ACCOUNT_ID"],
+      steps: [
+        "Meta Business Settings → Users → System users → add one with access to your ad account.",
+        "Generate a token for it with the ads_read permission → META_ACCESS_TOKEN.",
+        "Ad account id (digits only, without act_) → META_AD_ACCOUNT_ID.",
+      ],
+    },
+  },
+  {
+    kind: "google_ads", label: "Google Ads", icon: Search, dataset: "ads",
+    blurb: "Daily campaign cost, conversions and conversion value, via your Google Ads manager (MCC) account.",
+    live: {
+      secrets: [
+        "GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_CLIENT_ID", "GOOGLE_ADS_CLIENT_SECRET",
+        "GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_LOGIN_CUSTOMER_ID", "GOOGLE_ADS_CUSTOMER_IDS",
+      ],
+      steps: [
+        "Manager account → Tools → API Center: get the developer token (apply for Basic access to use it on live accounts).",
+        "Google Cloud console: enable the Google Ads API and create an OAuth client → client id + secret.",
+        "Generate a refresh token for a user with access to the manager account (scope adwords).",
+        "Manager account id → GOOGLE_ADS_LOGIN_CUSTOMER_ID; client account id(s), comma-separated → GOOGLE_ADS_CUSTOMER_IDS.",
+      ],
+    },
+  },
+  {
+    kind: "amazon_ads", label: "Amazon Ads", icon: FileSpreadsheet, dataset: "ads",
+    blurb: "Sponsored Products daily spend and 7-day sales. Reports take a few minutes — sync again if it says pending.",
+    live: {
+      secrets: ["AMAZON_ADS_CLIENT_ID", "AMAZON_ADS_CLIENT_SECRET", "AMAZON_ADS_REFRESH_TOKEN", "AMAZON_ADS_PROFILE_ID"],
+      steps: [
+        "Apply for Amazon Ads API access and create a Login with Amazon security profile → client id + secret.",
+        "Authorize it for your advertiser account (scope advertising::campaign_management) → refresh token.",
+        "Look up your Amazon.in advertising profile id (GET /v2/profiles) → AMAZON_ADS_PROFILE_ID.",
+      ],
+    },
+  },
 ];
 
 function Integrations() {
   const qc = useQueryClient();
+  const { role } = useRole();
+  const isCeo = role === "ceo";
   const listFn = useServerFn(listDataSources);
-  const setStatusFn = useServerFn(setSourceStatus);
   const importSalesFn = useServerFn(importSalesRows);
   const importAdsFn = useServerFn(importAdRows);
   const summaryFn = useServerFn(getIntegrationsSummary);
+  const syncFn = useServerFn(triggerSync);
 
   const sources = useQuery({ queryKey: ["data_sources"], queryFn: () => listFn() });
   const summary = useQuery({ queryKey: ["integrations_summary"], queryFn: () => summaryFn() });
 
-  const setStatus = useMutation({
-    mutationFn: (v: { kind: Kind; status: "connected" | "disconnected" | "pending" }) =>
-      setStatusFn({ data: v }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["data_sources"] }),
-  });
+  const refresh = () => {
+    for (const k of ["data_sources", "integrations_summary", "sales_imports", "ad_spend_imports", "business_snapshot"]) {
+      qc.invalidateQueries({ queryKey: [k] });
+    }
+  };
 
   const uploadSales = useMutation({
     mutationFn: (v: { source: Kind; rows: SalesCsvRow[] }) => importSalesFn({ data: v }),
-    onSuccess: (r) => {
-      toast.success(`Imported ${r.inserted} sales rows`);
-      qc.invalidateQueries({ queryKey: ["data_sources"] });
-      qc.invalidateQueries({ queryKey: ["integrations_summary"] });
-    },
+    onSuccess: (r) => { toast.success(`Imported ${r.inserted} sales rows`); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const uploadAds = useMutation({
     mutationFn: (v: { platform: Kind; rows: AdCsvRow[] }) => importAdsFn({ data: v }),
-    onSuccess: (r) => {
-      toast.success(`Imported ${r.inserted} ad rows`);
-      qc.invalidateQueries({ queryKey: ["data_sources"] });
-      qc.invalidateQueries({ queryKey: ["integrations_summary"] });
-    },
+    onSuccess: (r) => { toast.success(`Imported ${r.inserted} ad rows`); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const metaSyncFn = useServerFn(triggerMetaSync);
-  const metaSync = useMutation({
-    mutationFn: (range: { since: string; until: string }) => metaSyncFn({ data: range }),
-    onSuccess: (r) => {
-      toast.success(`Synced ${r.rows_synced} rows from Meta (${r.since} -> ${r.until})`);
-      qc.invalidateQueries({ queryKey: ["data_sources"] });
-      qc.invalidateQueries({ queryKey: ["integrations_summary"] });
-      qc.invalidateQueries({ queryKey: ["ad_spend_imports"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const [syncing, setSyncing] = useState<Kind | null>(null);
+  async function runSync(kind: SyncKind, label: string, range: { since: string; until: string }) {
+    setSyncing(kind);
+    try {
+      const r = await syncFn({ data: { kind, ...range } });
+      if (r.pending) toast.info(r.note ?? `${label}: report is still being prepared — sync again in a few minutes.`);
+      else {
+        const what = r.orders !== undefined ? `${r.orders} orders` : `${r.rows_synced} rows`;
+        toast.success(`${label}: synced ${what} (${r.since} → ${r.until})${r.note ? `. ${r.note}` : ""}`);
+      }
+    } catch (e) {
+      toast.error(`${label}: ${(e as Error).message}`);
+    } finally {
+      setSyncing(null);
+      refresh();
+    }
+  }
 
   const byKind = new Map((sources.data ?? []).map((s) => [s.kind, s]));
+  const card = (c: Source) => (
+    <SourceCard
+      key={c.kind}
+      cfg={c}
+      row={byKind.get(c.kind)}
+      canSync={isCeo}
+      syncing={syncing === c.kind}
+      onSync={c.live ? (range) => runSync(c.kind as SyncKind, c.label, range) : undefined}
+      onCsv={(rows) =>
+        c.dataset === "sales"
+          ? uploadSales.mutate({ source: c.kind, rows: rows as SalesCsvRow[] })
+          : uploadAds.mutate({ platform: c.kind, rows: rows as AdCsvRow[] })
+      }
+      // Ad CSV import is CEO-only on the server; salespeople can still upload sales.
+      canUploadCsv={c.dataset === "sales" || isCeo}
+    />
+  );
 
   return (
     <div>
-      <PageHeader
-        title="Integrations"
-        description="Connect every place your business earns and spends."
-      />
+      <PageHeader title="Integrations" description="Connect every place your business earns and spends." />
 
       <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4 mb-6">
-        <StatCard label="Sources connected" value={(sources.data ?? []).filter((s) => s.status === "connected").length} total={CATALOG.length} />
-        <StatCard label="Sales rows"        value={summary.data?.salesRows ?? 0} />
-        <StatCard label="Ad rows"           value={summary.data?.adRows ?? 0} />
-        <StatCard label="Last sync"         value={mostRecent(sources.data ?? [])} isDate />
+        <StatCard label="Sources syncing" value={(sources.data ?? []).filter((s) => s.status === "connected").length} total={CATALOG.length} />
+        <StatCard label="Sales rows"      value={summary.data?.salesRows ?? 0} />
+        <StatCard label="Ad rows"         value={summary.data?.adRows ?? 0} />
+        <StatCard label="Last sync"       value={mostRecent(sources.data ?? [])} isDate />
       </div>
 
-      <SectionCard title="Sales channels" className="mb-4">
-        <div className="grid gap-3 md:grid-cols-2">
-          {CATALOG.filter((c) => c.dataset === "sales").map((c) => (
-            <SourceCard
-              key={c.kind}
-              cfg={c}
-              row={byKind.get(c.kind)}
-              onToggle={(status) => setStatus.mutate({ kind: c.kind, status })}
-              onCsv={(rows) => uploadSales.mutate({ source: c.kind, rows: rows as SalesCsvRow[] })}
-              csvKind="sales"
-            />
-          ))}
+      {isCeo && (
+        <div className="mb-4 rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
+          Live syncs run as Supabase edge functions. Each one needs its secrets set under Edge Functions → Secrets, plus
+          a <code className="text-foreground">CRON_SECRET</code> set both there and in the app server environment. A source
+          shows <b className="text-foreground">Connected</b> only after a sync has actually succeeded.
         </div>
+      )}
+
+      <SectionCard title="Sales channels" className="mb-4">
+        <div className="grid gap-3 md:grid-cols-2">{CATALOG.filter((c) => c.dataset === "sales").map(card)}</div>
       </SectionCard>
 
       <SectionCard title="Marketing / ad spend">
-        <div className="grid gap-3 md:grid-cols-2">
-          {CATALOG.filter((c) => c.dataset === "ads").map((c) => (
-            <SourceCard
-              key={c.kind}
-              cfg={c}
-              row={byKind.get(c.kind)}
-              onToggle={(status) => setStatus.mutate({ kind: c.kind, status })}
-              onCsv={(rows) => uploadAds.mutate({ platform: c.kind, rows: rows as AdCsvRow[] })}
-              csvKind="ads"
-              onMetaSync={c.kind === "meta_ads" ? (range) => metaSync.mutate(range) : undefined}
-              metaSyncing={c.kind === "meta_ads" ? metaSync.isPending : false}
-            />
-          ))}
-        </div>
+        <div className="grid gap-3 md:grid-cols-2">{CATALOG.filter((c) => c.dataset === "ads").map(card)}</div>
       </SectionCard>
     </div>
   );
@@ -209,28 +249,31 @@ function mostRecent(rows: { last_synced_at: string | null }[]) {
 type SalesCsvRow = { order_date: string; channel?: string; revenue: number; orders: number; currency: string; external_id?: string };
 type AdCsvRow    = { spend_date: string; campaign?: string; spend: number; revenue: number; impressions: number; clicks: number; conversions: number };
 
+const STATUS: Record<string, { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" }> = {
+  connected: { label: "Connected",  icon: CheckCircle2, variant: "default" },
+  pending:   { label: "Pending",    icon: Clock,        variant: "secondary" },
+  error:     { label: "Sync error", icon: AlertCircle,  variant: "destructive" },
+};
+
 function SourceCard({
-  cfg, row, onToggle, onCsv, csvKind, onMetaSync, metaSyncing,
+  cfg, row, onSync, syncing, canSync, onCsv, canUploadCsv,
 }: {
-  cfg: typeof CATALOG[number];
+  cfg: Source;
   row: { status: string; last_synced_at: string | null } | undefined;
-  onToggle: (s: "connected" | "disconnected" | "pending") => void;
+  onSync?: (range: { since: string; until: string }) => void;
+  syncing: boolean;
+  canSync: boolean;
   onCsv: (rows: unknown[]) => void;
-  csvKind: "sales" | "ads";
-  onMetaSync?: (range: { since: string; until: string }) => void;
-  metaSyncing?: boolean;
+  canUploadCsv: boolean;
 }) {
   const Icon = cfg.icon;
-  const status = row?.status ?? "disconnected";
-  const connected = status === "connected";
-  const [apiKey, setApiKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
-  const [metaRange, setMetaRange] = useState<keyof typeof META_RANGE_PRESETS>("last30");
+  const st = STATUS[row?.status ?? ""] ?? { label: cfg.live ? "Not connected" : "CSV only", icon: Circle, variant: "secondary" as const };
+  const [range, setRange] = useState<RangeKey>("last30");
 
   const handleFile = async (file: File) => {
     try {
       const text = await file.text();
-      const rows = csvKind === "sales" ? parseSalesCsv(text) : parseAdsCsv(text);
+      const rows = cfg.dataset === "sales" ? parseSalesCsv(text) : parseAdsCsv(text);
       if (!rows.length) return toast.error("No rows found in CSV");
       onCsv(rows);
     } catch (e) {
@@ -241,129 +284,76 @@ function SourceCard({
   return (
     <div className="rounded-xl border bg-card p-4 flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-lg bg-muted grid place-items-center">
+        <div className="h-10 w-10 rounded-lg bg-muted grid place-items-center shrink-0">
           <Icon className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="font-medium capitalize">{prettyLabel(cfg.kind)}</div>
-            <Badge variant={connected ? "default" : "secondary"} className="rounded-full text-[10px]">
-              {connected ? <><CheckCircle2 className="h-3 w-3 mr-1" />Connected</> : <><Circle className="h-3 w-3 mr-1" />{status}</>}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="font-medium">{cfg.label}</div>
+            <Badge variant={st.variant} className="rounded-full text-[10px]">
+              <st.icon className="h-3 w-3 mr-1" />{st.label}
             </Badge>
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">{cfg.blurb}</div>
         </div>
       </div>
 
-      {cfg.mode === "oauth" && onMetaSync && (
-        <div className="space-y-1.5">
+      {cfg.live && onSync && canSync && (
+        <div className="space-y-2">
           <div className="flex gap-2">
-            <Select value={metaRange} onValueChange={(v) => setMetaRange(v as keyof typeof META_RANGE_PRESETS)}>
-              <SelectTrigger className="h-8 text-xs w-[150px]"><SelectValue /></SelectTrigger>
+            <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
+              <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {Object.entries(META_RANGE_PRESETS).map(([key, p]) => (
+                {Object.entries(RANGE_PRESETS).map(([key, p]) => (
                   <SelectItem key={key} value={key} className="text-xs">{p.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              size="sm"
-              onClick={() => onMetaSync(META_RANGE_PRESETS[metaRange].compute())}
-              disabled={metaSyncing}
-              className="gap-1.5"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${metaSyncing ? "animate-spin" : ""}`} />
-              {metaSyncing ? "Syncing..." : "Sync now"}
+            <Button size="sm" onClick={() => onSync(RANGE_PRESETS[range].compute())} disabled={syncing} className="gap-1.5">
+              <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Syncing…" : "Sync now"}
             </Button>
           </div>
-          <div className="text-[10px] text-muted-foreground">
-            Pulls campaign spend from Meta for the selected range. Requires META_ACCESS_TOKEN, META_AD_ACCOUNT_ID
-            and CRON_SECRET to be set as Edge Function secrets, and CRON_SECRET set in the app's server environment too.
-          </div>
+          <Collapsible>
+            <CollapsibleTrigger className="group flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+              <ChevronDown className="h-3 w-3 transition group-data-[state=open]:rotate-180" /> Setup
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-2 text-[11px] text-muted-foreground">
+              <ol className="list-decimal pl-4 space-y-1">{cfg.live.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+              <div className="flex flex-wrap gap-1 items-center">
+                <span>Edge function secrets:</span>
+                {cfg.live.secrets.map((s) => <code key={s} className="rounded bg-muted px-1 py-0.5 text-foreground">{s}</code>)}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       )}
 
-      {cfg.mode === "oauth" && !onMetaSync && (
-        <div className="flex gap-2">
-          {connected ? (
-            <>
-              <Button size="sm" variant="outline" onClick={() => onToggle("connected")} className="gap-1.5">
-                <RefreshCw className="h-3.5 w-3.5" /> Resync
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => onToggle("disconnected")}>Disconnect</Button>
-            </>
-          ) : (
-            <Button size="sm" onClick={() => { onToggle("connected"); toast.info(`Live ${prettyLabel(cfg.kind)} OAuth wires up next — mock connection saved.`); }}>
-              Connect {prettyLabel(cfg.kind)}
-            </Button>
-          )}
-        </div>
-      )}
-
-      {cfg.mode === "api_key" && (
-        <div className="space-y-2">
-          <Label className="text-xs">API key / seller token</Label>
-          <div className="flex gap-2">
-            <Input
-              type={showKey ? "text" : "password"}
-              placeholder="Paste key…"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="h-9"
-            />
-            <Button size="sm" variant="outline" onClick={() => setShowKey((v) => !v)}>{showKey ? "Hide" : "Show"}</Button>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              disabled={!apiKey && !connected}
-              onClick={() => {
-                onToggle(connected ? "disconnected" : "connected");
-                if (!connected) toast.info("Saved — live sync wires up next.");
-              }}
-            >
-              {connected ? "Disconnect" : "Save & connect"}
-            </Button>
+      {canUploadCsv && (
+        <div className="border-t pt-3">
+          <Label className="text-xs mb-2 flex items-center gap-1.5">
+            <Upload className="h-3.5 w-3.5" />
+            {cfg.live ? "Or upload" : "Upload"} {cfg.dataset === "sales" ? "sales" : "ad spend"} CSV
+          </Label>
+          <Input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ""; }}
+            className="h-9 file:mr-2 file:text-xs"
+          />
+          <div className="text-[10px] text-muted-foreground mt-1.5">
+            {cfg.dataset === "sales"
+              ? "Columns: order_date, channel, revenue, orders, currency, external_id"
+              : "Columns: spend_date, campaign, spend, revenue, impressions, clicks, conversions"}
           </div>
         </div>
       )}
-
-      <div className="border-t pt-3">
-        <Label className="text-xs mb-2 block flex items-center gap-1.5">
-          <Upload className="h-3.5 w-3.5" />
-          Upload {csvKind === "sales" ? "sales" : "ad spend"} CSV
-        </Label>
-        <Input
-          type="file"
-          accept=".csv,text/csv"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ""; }}
-          className="h-9 file:mr-2 file:text-xs"
-        />
-        <div className="text-[10px] text-muted-foreground mt-1.5">
-          {csvKind === "sales"
-            ? "Columns: order_date, channel, revenue, orders, currency, external_id"
-            : "Columns: spend_date, campaign, spend, revenue, impressions, clicks, conversions"}
-        </div>
-      </div>
 
       {row?.last_synced_at && (
-        <div className="text-[10px] text-muted-foreground">
-          Last sync: {new Date(row.last_synced_at).toLocaleString()}
-        </div>
+        <div className="text-[10px] text-muted-foreground">Last sync: {new Date(row.last_synced_at).toLocaleString()}</div>
       )}
     </div>
   );
-}
-
-function prettyLabel(k: string) {
-  return ({
-    shopify: "Shopify",
-    amazon_seller: "Amazon Seller",
-    meta_ads: "Meta Ads",
-    amazon_ads: "Amazon Ads",
-    blinkit: "Blinkit",
-    offline: "Offline",
-  } as Record<string, string>)[k] ?? k;
 }
 
 function parseCsv(text: string): Record<string, string>[] {

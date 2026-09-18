@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/finance")({
 const expenseFields: Field[] = [
   { name: "expense_date", label: "Date", type: "date", required: true },
   { name: "category", label: "Category", type: "select", required: true, options: EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c })) },
-  { name: "vendor", label: "Vendor", placeholder: "Supplier name" },
+  { name: "vendor", label: "Vendor" },
   { name: "amount", label: "Amount (₹, excl. GST)", type: "number", required: true, min: 0 },
   { name: "gst_amount", label: "GST (₹)", type: "number", required: true, min: 0 },
   { name: "is_cogs", label: "Counts as COGS", type: "switch" },
@@ -40,8 +40,8 @@ const expenseFields: Field[] = [
 ];
 
 const invoiceFields: Field[] = [
-  { name: "invoice_no", label: "Invoice #", required: true, placeholder: "INV-1024" },
-  { name: "customer", label: "Customer", required: true, placeholder: "Distributor / retailer" },
+  { name: "invoice_no", label: "Invoice #", required: true },
+  { name: "customer", label: "Customer", required: true },
   { name: "issue_date", label: "Issued", type: "date", required: true },
   { name: "due_date", label: "Due", type: "date" },
   { name: "amount", label: "Amount (₹, excl. GST)", type: "number", required: true, min: 0 },

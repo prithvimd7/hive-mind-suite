@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { platformLabel } from "@/hooks/use-marketing-data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus } from "lucide-react";
@@ -41,9 +42,14 @@ export function AdSpendDialog({ trigger }: { trigger?: React.ReactNode }) {
       conversions: Number(conversions) || 0,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      return toast.error(error.code === "23505"
+        ? "There is already an entry for this platform, campaign and date — delete it first or use a different campaign name."
+        : error.message);
+    }
     toast.success("Ad spend entry added");
     qc.invalidateQueries({ queryKey: ["ad_spend_imports"] });
+    qc.invalidateQueries({ queryKey: ["business_snapshot"] });
     setCampaign(""); setSpend(""); setRevenue(""); setImpressions(""); setClicks(""); setConversions("");
     setOpen(false);
   }
@@ -65,7 +71,7 @@ export function AdSpendDialog({ trigger }: { trigger?: React.ReactNode }) {
               <Select value={platform} onValueChange={setPlatform}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p.replace("_", " ")}</SelectItem>)}
+                  {PLATFORMS.map((p) => <SelectItem key={p} value={p}>{platformLabel(p)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -77,7 +83,7 @@ export function AdSpendDialog({ trigger }: { trigger?: React.ReactNode }) {
 
           <div>
             <Label>Campaign name</Label>
-            <Input value={campaign} onChange={(e) => setCampaign(e.target.value)} placeholder="Prospecting — Bone Broth" />
+            <Input value={campaign} onChange={(e) => setCampaign(e.target.value)} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

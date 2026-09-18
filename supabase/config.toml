@@ -1,4 +1,18 @@
 project_id = "ywymetblsxqixzxuavko"
 
+# Sync functions authenticate with CRON_SECRET (checked inside the function), not a user JWT,
+# so they can be called from pg_cron as well as from the app's server.
 [functions.sync-meta-ads]
+verify_jwt = false
+
+[functions.sync-shopify]
+verify_jwt = false
+
+[functions.sync-amazon-seller]
+verify_jwt = false
+
+[functions.sync-amazon-ads]
+verify_jwt = false
+
+[functions.sync-google-ads]
 verify_jwt = false
