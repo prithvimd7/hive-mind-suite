@@ -12,6 +12,7 @@
 //   AMAZON_ADS_REFRESH_TOKEN                       - from authorizing the app with advertising::campaign_management
 //   AMAZON_ADS_PROFILE_ID                          - the Amazon.in advertising profile id
 //   AMAZON_ADS_ENDPOINT                            - optional, defaults to the EU endpoint (serves India)
+//   AMAZON_ADS_TOKEN_URL                           - optional, defaults to the EU token endpoint (api.amazon.co.uk)
 //   CRON_SECRET
 
 import { lwaAccessToken, parseRange, requireEnv, serveSync, upsertAds, markSynced, sleep, type AdRow } from "../_shared/sync.ts";
@@ -23,7 +24,8 @@ type Pending = { id: string; since: string; until: string };
 serveSync("amazon_ads", async (req, db) => {
   const env = requireEnv("AMAZON_ADS_CLIENT_ID", "AMAZON_ADS_CLIENT_SECRET", "AMAZON_ADS_REFRESH_TOKEN", "AMAZON_ADS_PROFILE_ID");
   const endpoint = Deno.env.get("AMAZON_ADS_ENDPOINT") ?? "https://advertising-api-eu.amazon.com";
-  const token = await lwaAccessToken(env.AMAZON_ADS_CLIENT_ID, env.AMAZON_ADS_CLIENT_SECRET, env.AMAZON_ADS_REFRESH_TOKEN);
+  const tokenUrl = Deno.env.get("AMAZON_ADS_TOKEN_URL") ?? "https://api.amazon.co.uk/auth/o2/token";
+  const token = await lwaAccessToken(env.AMAZON_ADS_CLIENT_ID, env.AMAZON_ADS_CLIENT_SECRET, env.AMAZON_ADS_REFRESH_TOKEN, tokenUrl);
   const headers = {
     Authorization: `Bearer ${token}`,
     "Amazon-Advertising-API-ClientId": env.AMAZON_ADS_CLIENT_ID,

@@ -138,9 +138,12 @@ export function serveSync(kind: string, run: (req: Request, db: SupabaseClient) 
   });
 }
 
-/** Login-with-Amazon token exchange, used by both Seller (SP-API) and Ads APIs. */
-export async function lwaAccessToken(clientId: string, clientSecret: string, refreshToken: string) {
-  const res = await fetch("https://api.amazon.com/auth/o2/token", {
+/**
+ * Login-with-Amazon token exchange, used by both Seller (SP-API) and Ads APIs. SP-API uses the global
+ * endpoint; the Ads API wants the regional one that issued the refresh token (EU, incl. India: api.amazon.co.uk).
+ */
+export async function lwaAccessToken(clientId: string, clientSecret: string, refreshToken: string, tokenUrl = "https://api.amazon.com/auth/o2/token") {
+  const res = await fetch(tokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: clientId, client_secret: clientSecret }),
