@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { eachDay, rangeDays, type DateRange } from "@/lib/date-range";
-import { isoDaysAgo, today } from "@/lib/format";
+import { isoDaysAgo, localIso, today } from "@/lib/format";
 
 export interface DailyPoint {
   label: string;
@@ -19,6 +19,8 @@ export interface ChannelBreakdown {
 export interface SalesData {
   hasData: boolean;
   totalRevenue: number;
+  todayRevenue: number;
+  monthRevenue: number;
   totalOrders: number;
   aov: number;
   revenueTrend: DailyPoint[];
@@ -28,6 +30,8 @@ export interface SalesData {
 const EMPTY: SalesData = {
   hasData: false,
   totalRevenue: 0,
+  todayRevenue: 0,
+  monthRevenue: 0,
   totalOrders: 0,
   aov: 0,
   revenueTrend: [],
@@ -40,6 +44,9 @@ const EMPTY: SalesData = {
  */
 export function useSalesData(period: number | DateRange = 30) {
   const range = typeof period === "number" ? { since: isoDaysAgo(period - 1), until: today() } : period;
+  const now = new Date();
+  const monthStart = localIso(new Date(now.getFullYear(), now.getMonth(), 1));
+  const querySince = [range.since, monthStart, today()].sort()[0];
   return useQuery({
     queryKey: ["sales_imports", range.since, range.until],
     placeholderData: keepPreviousData,
@@ -47,18 +54,25 @@ export function useSalesData(period: number | DateRange = 30) {
       const { data, error } = await supabase
         .from("sales_imports")
         .select("order_date, revenue, orders, channel")
-        .gte("order_date", range.since)
+        .gte("order_date", querySince)
         .lte("order_date", range.until)
         .order("order_date", { ascending: true });
 
       if (error) throw error;
       if (!data || data.length === 0) return EMPTY;
 
-      const totalRevenue = data.reduce((a, r) => a + Number(r.revenue), 0);
-      const totalOrders = data.reduce((a, r) => a + Number(r.orders), 0);
+      const rangeRows = data.filter((r) => r.order_date >= range.since && r.order_date <= range.until);
+      const totalRevenue = rangeRows.reduce((a, r) => a + Number(r.revenue), 0);
+      const totalOrders = rangeRows.reduce((a, r) => a + Number(r.orders), 0);
+      const todayRevenue = data
+        .filter((r) => r.order_date === today())
+        .reduce((a, r) => a + Number(r.revenue), 0);
+      const monthRevenue = data
+        .filter((r) => r.order_date >= monthStart && r.order_date <= today())
+        .reduce((a, r) => a + Number(r.revenue), 0);
 
       const byDay = new Map<string, number>();
-      for (const r of data) {
+      for (const r of rangeRows) {
         byDay.set(r.order_date, (byDay.get(r.order_date) ?? 0) + Number(r.revenue));
       }
       // One point per day (zero-filled) so gaps show as dips. Long ranges would be too dense, so weekly-bucket past ~45 days.
@@ -68,7 +82,7 @@ export function useSalesData(period: number | DateRange = 30) {
         : bucketWeekly(days, byDay);
 
       const byChannelMap = new Map<string, { revenue: number; orders: number }>();
-      for (const r of data) {
+      for (const r of rangeRows) {
         const ch = r.channel ?? "Other";
         const cur = byChannelMap.get(ch) ?? { revenue: 0, orders: 0 };
         cur.revenue += Number(r.revenue);
@@ -83,8 +97,10 @@ export function useSalesData(period: number | DateRange = 30) {
       }));
 
       return {
-        hasData: true,
+        hasData: rangeRows.length > 0,
         totalRevenue,
+        todayRevenue,
+        monthRevenue,
         totalOrders,
         aov: totalOrders > 0 ? totalRevenue / totalOrders : 0,
         revenueTrend,
