@@ -14,15 +14,14 @@ const SourceKind = z.enum([
 
 export const listDataSources = createServerFn({ method: "GET" })
   .middleware([requireUser])
-  .handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("data_sources")
-    .select("*")
-    .order("label");
-  if (error) throw new Error(error.message);
-  return data ?? [];
-});
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("data_sources")
+      .select("*")
+      .order("label");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
 
 export const setSourceStatus = createServerFn({ method: "POST" })
   .middleware([requireCeo])
@@ -33,14 +32,13 @@ export const setSourceStatus = createServerFn({ method: "POST" })
       config: z.record(z.string(), z.unknown()).optional(),
     }).parse(v),
   )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  .handler(async ({ data, context }) => {
     const patch: { status: string; config?: Json; last_synced_at?: string } = {
       status: data.status,
     };
     if (data.config) patch.config = data.config as Json;
     if (data.status === "connected") patch.last_synced_at = new Date().toISOString();
-    const { error } = await supabaseAdmin
+    const { error } = await context.supabase
       .from("data_sources")
       .update(patch)
       .eq("kind", data.kind);
@@ -62,17 +60,17 @@ export const importSalesRows = createServerFn({ method: "POST" })
   .inputValidator((v: { source: string; rows: unknown[] }) =>
     z.object({ source: SourceKind, rows: z.array(SalesRow).max(5000) }).parse(v),
   )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  .handler(async ({ data, context }) => {
     const payload = data.rows.map((r) => ({ ...r, source: data.source }));
-    const { error, count } = await supabaseAdmin
+    const { error, count } = await context.supabase
       .from("sales_imports")
       .insert(payload, { count: "exact" });
     if (error) throw new Error(error.message);
-    await supabaseAdmin
+    const { error: sourceError } = await context.supabase
       .from("data_sources")
       .update({ status: "connected", last_synced_at: new Date().toISOString() })
       .eq("kind", data.source);
+    if (sourceError) throw new Error(sourceError.message);
     return { inserted: count ?? payload.length };
   });
 
@@ -91,30 +89,31 @@ export const importAdRows = createServerFn({ method: "POST" })
   .inputValidator((v: { platform: string; rows: unknown[] }) =>
     z.object({ platform: SourceKind, rows: z.array(AdRow).max(5000) }).parse(v),
   )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  .handler(async ({ data, context }) => {
     const payload = data.rows.map((r) => ({ ...r, platform: data.platform }));
-    const { error, count } = await supabaseAdmin
+    const { error, count } = await context.supabase
       .from("ad_spend_imports")
       .insert(payload, { count: "exact" });
     if (error) throw new Error(error.message);
-    await supabaseAdmin
+    const { error: sourceError } = await context.supabase
       .from("data_sources")
       .update({ status: "connected", last_synced_at: new Date().toISOString() })
       .eq("kind", data.platform);
+    if (sourceError) throw new Error(sourceError.message);
     return { inserted: count ?? payload.length };
   });
 
 export const getIntegrationsSummary = createServerFn({ method: "GET" })
   .middleware([requireUser])
-  .handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const [sales, ads] = await Promise.all([
-    supabaseAdmin.from("sales_imports").select("source", { count: "exact", head: true }),
-    supabaseAdmin.from("ad_spend_imports").select("platform", { count: "exact", head: true }),
-  ]);
-  return {
-    salesRows: sales.count ?? 0,
-    adRows: ads.count ?? 0,
-  };
-});
+  .handler(async ({ context }) => {
+    const [sales, ads] = await Promise.all([
+      context.supabase.from("sales_imports").select("source", { count: "exact", head: true }),
+      context.supabase.from("ad_spend_imports").select("platform", { count: "exact", head: true }),
+    ]);
+    if (sales.error) throw new Error(sales.error.message);
+    if (ads.error) throw new Error(ads.error.message);
+    return {
+      salesRows: sales.count ?? 0,
+      adRows: ads.count ?? 0,
+    };
+  });
