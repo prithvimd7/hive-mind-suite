@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isoDaysAgo, today } from "./format";
+import type { DateRange } from "./date-range";
 
 function escape(v: unknown) {
   const s = v === null || v === undefined ? "" : String(v);
@@ -19,12 +20,15 @@ export function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportSalesCsv(days = 90) {
+/** Downloads sales rows for the last `days` days or an explicit date range. */
+export async function exportSalesCsv(period: number | DateRange = 90) {
+  const r = typeof period === "number" ? { since: isoDaysAgo(period), until: today() } : period;
   const { data, error } = await supabase
     .from("sales_imports")
     .select("order_date, channel, source, orders, revenue, currency, external_id")
-    .gte("order_date", isoDaysAgo(days))
+    .gte("order_date", r.since)
+    .lte("order_date", r.until)
     .order("order_date", { ascending: true });
   if (error) throw error;
-  downloadCsv(`sales_${isoDaysAgo(days)}_to_${today()}.csv`, data ?? []);
+  downloadCsv(`sales_${r.since}_to_${r.until}.csv`, data ?? []);
 }

@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { isoDaysAgo, localIso } from "@/lib/format";
+import { DEFAULT_RANGE, eachDay, previousRange, resolveRange, type DateRange } from "@/lib/date-range";
 import { isCriticalStock, isInvoiceOverdue, isLowStock, today, type InventoryItem, type Invoice } from "./use-modules";
 
 export interface Alert {
@@ -12,11 +13,15 @@ export interface Alert {
 }
 
 export interface BusinessSnapshot {
-  // 30-day window vs the 30 days before it
+  /** The selected window, and the equally long window just before it used for comparisons. */
+  range: DateRange;
+  prevRange: DateRange;
   revenue: number;
   prevRevenue: number;
   orders: number;
+  prevOrders: number;
   adSpend: number;
+  prevAdSpend: number;
   expenses: number;
   cogs: number;
   grossProfit: number;
@@ -31,7 +36,7 @@ export interface BusinessSnapshot {
   receivables: number;
   payables: number;
   gstPayable: number;
-  /** Daily cash in/out for the window, for charting. */
+  /** Daily cash in/out for the selected range, for charting. */
   cashTrend: { label: string; value: number; secondary: number }[];
   /** Last 6 calendar months: revenue vs total costs (expenses + ad spend). */
   monthlyPnL: { month: string; revenue: number; expense: number }[];
@@ -131,20 +136,25 @@ export function buildAlerts(input: {
   return alerts.sort((a, b) => rank[a.kind] - rank[b.kind]);
 }
 
-/** Pulls every module's data for the last 60–180 days and derives the cross-functional numbers. */
-export async function fetchBusinessSnapshot(): Promise<BusinessSnapshot> {
-  const d30 = isoDaysAgo(30), d60 = isoDaysAgo(60), d90 = isoDaysAgo(90);
+/**
+ * Derives the cross-functional numbers for `range`, compared with the equally long period just
+ * before it. Receivables, payables, inventory value and alerts are point-in-time (as of now);
+ * the monthly P&L always covers 6 months and the forecast always uses 90 days of history.
+ */
+export async function fetchBusinessSnapshot(range: DateRange = resolveRange(DEFAULT_RANGE)): Promise<BusinessSnapshot> {
+  const prev = previousRange(range);
+  const d90 = isoDaysAgo(90);
   const monthStart = new Date();
   monthStart.setMonth(monthStart.getMonth() - 5, 1);
   const d6m = localIso(monthStart);
-  const since = d6m < d90 ? d6m : d90;
+  const since = [prev.since, d6m, d90].sort()[0];
   const t = today();
 
   const [sales, ads, exps, batchesRes, inv, invs, fu] = await Promise.all([
     supabase.from("sales_imports").select("order_date, revenue, orders").gte("order_date", since),
     supabase.from("ad_spend_imports").select("spend_date, spend").gte("spend_date", since),
     supabase.from("expenses").select("id, expense_date, amount, gst_amount, is_cogs, status, due_date, vendor, category").gte("expense_date", since),
-    supabase.from("production_batches").select("id, batch_code, batch_date, units_produced, qc_status").gte("batch_date", d60),
+    supabase.from("production_batches").select("id, batch_code, batch_date, units_produced, qc_status").gte("batch_date", [prev.since, isoDaysAgo(7)].sort()[0]),
     supabase.from("inventory_items").select("*"),
     supabase.from("invoices").select("*"),
     supabase.from("crm_contacts").select("id, name, company, next_follow_up, stage").lte("next_follow_up", t).not("stage", "in", "(won,lost)"),
@@ -158,30 +168,28 @@ export async function fetchBusinessSnapshot(): Promise<BusinessSnapshot> {
   const invRows = inv.data ?? [];
   const invoiceRows = invs.data ?? [];
 
-  const in30 = <T,>(rows: T[], f: (r: T) => string) => rows.filter((r) => f(r) >= d30);
-  const inPrev30 = <T,>(rows: T[], f: (r: T) => string) => rows.filter((r) => f(r) >= d60 && f(r) < d30);
+  const within = (r: DateRange) => <T,>(rows: T[], f: (row: T) => string) => rows.filter((row) => f(row) >= r.since && f(row) <= r.until);
+  const inRange = within(range);
+  const inPrev = within(prev);
 
-  const s30 = in30(salesRows, (r) => r.order_date);
-  const a30 = in30(adRows, (r) => r.spend_date);
-  const e30 = in30(expRows, (r) => r.expense_date);
+  const sR = inRange(salesRows, (r) => r.order_date);
+  const aR = inRange(adRows, (r) => r.spend_date);
+  const eR = inRange(expRows, (r) => r.expense_date);
 
-  const revenue = sum(s30, (r) => r.revenue);
-  const adSpend = sum(a30, (r) => r.spend);
-  const expenses = sum(e30, (r) => r.amount);
-  const cogs = sum(e30.filter((e) => e.is_cogs), (r) => r.amount);
+  const revenue = sum(sR, (r) => r.revenue);
+  const adSpend = sum(aR, (r) => r.spend);
+  const expenses = sum(eR, (r) => r.amount);
+  const cogs = sum(eR.filter((e) => e.is_cogs), (r) => r.amount);
   const grossProfit = revenue - cogs;
   const netProfit = revenue - expenses - adSpend;
-  const paidOut = sum(e30.filter((e) => e.status === "paid"), (r) => r.amount);
+  const paidOut = sum(eR.filter((e) => e.status === "paid"), (r) => r.amount);
 
   // Daily cash trend
   const cashIn = new Map<string, number>(), cashOut = new Map<string, number>();
-  for (const r of s30) cashIn.set(r.order_date, (cashIn.get(r.order_date) ?? 0) + Number(r.revenue));
-  for (const r of a30) cashOut.set(r.spend_date, (cashOut.get(r.spend_date) ?? 0) + Number(r.spend));
-  for (const r of e30.filter((e) => e.status === "paid")) cashOut.set(r.expense_date, (cashOut.get(r.expense_date) ?? 0) + Number(r.amount));
-  const cashTrend = Array.from({ length: 30 }, (_, i) => {
-    const d = isoDaysAgo(29 - i);
-    return { label: d.slice(5), value: cashIn.get(d) ?? 0, secondary: cashOut.get(d) ?? 0 };
-  });
+  for (const r of sR) cashIn.set(r.order_date, (cashIn.get(r.order_date) ?? 0) + Number(r.revenue));
+  for (const r of aR) cashOut.set(r.spend_date, (cashOut.get(r.spend_date) ?? 0) + Number(r.spend));
+  for (const r of eR.filter((e) => e.status === "paid")) cashOut.set(r.expense_date, (cashOut.get(r.expense_date) ?? 0) + Number(r.amount));
+  const cashTrend = eachDay(range).map((d) => ({ label: d.slice(5), value: cashIn.get(d) ?? 0, secondary: cashOut.get(d) ?? 0 }));
 
   // Monthly P&L
   const monthlyPnL: BusinessSnapshot["monthlyPnL"] = [];
@@ -207,10 +215,14 @@ export async function fetchBusinessSnapshot(): Promise<BusinessSnapshot> {
   const unpaidExpenses = expRows.filter((e) => e.status === "unpaid");
 
   return {
+    range,
+    prevRange: prev,
     revenue,
-    prevRevenue: sum(inPrev30(salesRows, (r) => r.order_date), (r) => r.revenue),
-    orders: sum(s30, (r) => r.orders),
+    prevRevenue: sum(inPrev(salesRows, (r) => r.order_date), (r) => r.revenue),
+    orders: sum(sR, (r) => r.orders),
+    prevOrders: sum(inPrev(salesRows, (r) => r.order_date), (r) => r.orders),
     adSpend,
+    prevAdSpend: sum(inPrev(adRows, (r) => r.spend_date), (r) => r.spend),
     expenses,
     cogs,
     grossProfit,
@@ -218,14 +230,14 @@ export async function fetchBusinessSnapshot(): Promise<BusinessSnapshot> {
     grossMargin: revenue > 0 ? (grossProfit / revenue) * 100 : null,
     netMargin: revenue > 0 ? (netProfit / revenue) * 100 : null,
     cashFlow: revenue - paidOut - adSpend,
-    unitsProduced: sum(in30(batchRows, (r) => r.batch_date), (r) => r.units_produced),
-    prevUnitsProduced: sum(inPrev30(batchRows, (r) => r.batch_date), (r) => r.units_produced),
+    unitsProduced: sum(inRange(batchRows, (r) => r.batch_date), (r) => r.units_produced),
+    prevUnitsProduced: sum(inPrev(batchRows, (r) => r.batch_date), (r) => r.units_produced),
     inventoryValue: sum(invRows, (r) => Number(r.stock) * Number(r.unit_cost ?? 0)),
     receivables: sum(unpaidInvoices, (r) => Number(r.amount) + Number(r.gst_amount)),
     payables: sum(unpaidExpenses, (r) => Number(r.amount) + Number(r.gst_amount)),
-    // Output GST collected on invoices minus input GST paid on expenses, this window.
+    // Output GST collected on invoices minus input GST paid on expenses, in the range.
     gstPayable:
-      sum(invoiceRows.filter((i) => i.issue_date >= d30), (r) => r.gst_amount) - sum(e30, (r) => r.gst_amount),
+      sum(inRange(invoiceRows, (r) => r.issue_date), (r) => r.gst_amount) - sum(eR, (r) => r.gst_amount),
     cashTrend,
     monthlyPnL,
     forecast,
@@ -239,6 +251,16 @@ export async function fetchBusinessSnapshot(): Promise<BusinessSnapshot> {
   };
 }
 
-export function useBusinessSnapshot(opts: { enabled?: boolean } = {}) {
-  return useQuery({ queryKey: ["business_snapshot"], queryFn: fetchBusinessSnapshot, staleTime: 60_000, enabled: opts.enabled ?? true });
+export const snapshotKey = (r: DateRange) => ["business_snapshot", r.since, r.until] as const;
+
+/** Defaults to the last 30 days. Query key starts with "business_snapshot" so existing invalidations still refresh it. */
+export function useBusinessSnapshot(opts: { enabled?: boolean; range?: DateRange } = {}) {
+  const range = opts.range ?? resolveRange(DEFAULT_RANGE);
+  return useQuery({
+    queryKey: snapshotKey(range),
+    queryFn: () => fetchBusinessSnapshot(range),
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    enabled: opts.enabled ?? true,
+  });
 }
