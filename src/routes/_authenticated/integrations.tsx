@@ -164,18 +164,25 @@ function Integrations() {
   });
 
   const [syncing, setSyncing] = useState<Kind | null>(null);
+  const [syncErrors, setSyncErrors] = useState<Partial<Record<SyncKind, string>>>({});
   async function runSync(kind: SyncKind, label: string, range: { since: string; until: string }) {
     setSyncing(kind);
+    setSyncErrors((current) => ({ ...current, [kind]: undefined }));
     try {
       const r = await syncFn({ data: { kind, ...range } });
-      if (!r.ok) toast.error(`${label}: ${r.error}`, { duration: 10_000 });
+      if (!r.ok) {
+        setSyncErrors((current) => ({ ...current, [kind]: r.error }));
+        toast.error(`${label}: ${r.error}`, { duration: 10_000 });
+      }
       else if (r.pending) toast.info(r.note ?? `${label}: report is still being prepared — sync again in a few minutes.`);
       else {
         const what = r.orders !== undefined ? `${r.orders} orders` : `${r.rows_synced} rows`;
         toast.success(`${label}: synced ${what} (${r.since} → ${r.until})${r.note ? `. ${r.note}` : ""}`);
       }
     } catch (e) {
-      toast.error(`${label}: ${(e as Error).message}`);
+      const message = (e as Error).message;
+      setSyncErrors((current) => ({ ...current, [kind]: message }));
+      toast.error(`${label}: ${message}`);
     } finally {
       setSyncing(null);
       refresh();
@@ -190,6 +197,7 @@ function Integrations() {
       row={byKind.get(c.kind)}
       canSync={isCeo}
       syncing={syncing === c.kind}
+      syncError={c.live ? syncErrors[c.kind as SyncKind] : undefined}
       onSync={c.live ? (range) => runSync(c.kind as SyncKind, c.label, range) : undefined}
       onCsv={(rows) =>
         c.dataset === "sales"
@@ -257,12 +265,13 @@ const STATUS: Record<string, { label: string; icon: React.ElementType; variant: 
 };
 
 function SourceCard({
-  cfg, row, onSync, syncing, canSync, onCsv, canUploadCsv,
+  cfg, row, onSync, syncing, syncError, canSync, onCsv, canUploadCsv,
 }: {
   cfg: Source;
   row: { status: string; last_synced_at: string | null } | undefined;
   onSync?: (range: { since: string; until: string }) => void;
   syncing: boolean;
+  syncError?: string;
   canSync: boolean;
   onCsv: (rows: unknown[]) => void;
   canUploadCsv: boolean;
@@ -327,6 +336,11 @@ function SourceCard({
               </div>
             </CollapsibleContent>
           </Collapsible>
+          {syncError && (
+            <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {syncError}
+            </div>
+          )}
         </div>
       )}
 
