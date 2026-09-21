@@ -47,17 +47,30 @@ serveSync("google_ads", async (req, db) => {
 
   const rows: AdRow[] = [];
   for (const cid of customers) {
-    const res = await fetch(`https://googleads.googleapis.com/${version}/customers/${cid}/googleAds:searchStream`, {
-      method: "POST",
-      headers: {
+    const requestCustomer = async (includeManager: boolean) => {
+      const headers: Record<string, string> = {
         Authorization: `Bearer ${tok.access_token}`,
         "developer-token": env.GOOGLE_ADS_DEVELOPER_TOKEN,
-        "login-customer-id": digits(env.GOOGLE_ADS_LOGIN_CUSTOMER_ID),
         "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query }),
-    });
-    const body = await res.json().catch(() => ({}));
+      };
+      if (includeManager) headers["login-customer-id"] = digits(env.GOOGLE_ADS_LOGIN_CUSTOMER_ID);
+      const response = await fetch(`https://googleads.googleapis.com/${version}/customers/${cid}/googleAds:searchStream`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ query }),
+      });
+      return { response, body: await response.json().catch(() => ({})) };
+    };
+
+    let { response: res, body } = await requestCustomer(true);
+    if (!res.ok && isCustomerPermissionError(body)) {
+      ({ response: res, body } = await requestCustomer(false));
+      if (!res.ok && isCustomerPermissionError(body)) {
+        throw new Error(
+          `Google Ads access denied for account ${cid}. Confirm the Google user that issued the refresh token can access this client account, and that GOOGLE_ADS_LOGIN_CUSTOMER_ID is the manager account that manages it.`,
+        );
+      }
+    }
     if (!res.ok) {
       const err = Array.isArray(body) ? body[0]?.error : body.error;
       const detail = err?.details?.[0]?.errors?.[0]?.message ?? err?.message ?? `HTTP ${res.status}`;
@@ -90,4 +103,9 @@ interface GoogleRow {
   campaign?: { name?: string };
   segments: { date: string };
   metrics?: { costMicros?: string; impressions?: string; clicks?: string; conversions?: number; conversionsValue?: number };
+}
+
+function isCustomerPermissionError(body: unknown): boolean {
+  const text = JSON.stringify(body).toLowerCase();
+  return text.includes("user_permission_denied") || text.includes("doesn't have permission to access customer");
 }
