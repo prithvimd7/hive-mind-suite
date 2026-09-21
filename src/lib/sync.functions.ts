@@ -13,7 +13,7 @@ export const SYNC_FUNCTIONS = {
 
 export type SyncKind = keyof typeof SYNC_FUNCTIONS;
 
-export type SyncResult = {
+export type SyncSuccess = {
   ok: true;
   rows_synced: number;
   since: string;
@@ -22,6 +22,14 @@ export type SyncResult = {
   pending?: boolean;
   note?: string;
 };
+
+export type SyncFailure = {
+  ok: false;
+  error: string;
+  status: number;
+};
+
+export type SyncResult = SyncSuccess | SyncFailure;
 
 /**
  * Runs a platform sync using the signed-in CEO's verified bearer token. The token is forwarded
@@ -55,8 +63,13 @@ export const triggerSync = createServerFn({ method: "POST" })
       headers: { Authorization: authorization },
     });
     const json = await res.json().catch(() => ({}));
-    if (res.status === 404) throw new Error(`The ${SYNC_FUNCTIONS[data.kind]} edge function isn't deployed yet.`);
+    if (res.status === 404) {
+      return { ok: false, status: res.status, error: `The ${SYNC_FUNCTIONS[data.kind]} sync isn't deployed yet.` } satisfies SyncFailure;
+    }
     if (res.status === 401 || res.status === 403) throw new Error("Your account is not authorized to run this sync.");
-    if (!res.ok) throw new Error(json?.error ?? `Sync failed (HTTP ${res.status})`);
-    return json as SyncResult;
+    if (!res.ok) {
+      const error = typeof json?.error === "string" ? json.error : `Sync failed (HTTP ${res.status})`;
+      return { ok: false, status: res.status, error } satisfies SyncFailure;
+    }
+    return json as SyncSuccess;
   });

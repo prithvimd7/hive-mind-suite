@@ -168,7 +168,8 @@ function Integrations() {
     setSyncing(kind);
     try {
       const r = await syncFn({ data: { kind, ...range } });
-      if (r.pending) toast.info(r.note ?? `${label}: report is still being prepared — sync again in a few minutes.`);
+      if (!r.ok) toast.error(`${label}: ${r.error}`, { duration: 10_000 });
+      else if (r.pending) toast.info(r.note ?? `${label}: report is still being prepared — sync again in a few minutes.`);
       else {
         const what = r.orders !== undefined ? `${r.orders} orders` : `${r.rows_synced} rows`;
         toast.success(`${label}: synced ${what} (${r.since} → ${r.until})${r.note ? `. ${r.note}` : ""}`);
