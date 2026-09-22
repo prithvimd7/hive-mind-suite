@@ -27,6 +27,10 @@ export const EXPENSE_CATEGORIES = [
 /** Categories that count toward cost of goods sold by default (user can override per expense). */
 export const COGS_CATEGORIES = new Set(["Raw materials", "Packaging", "Co-packing / processing", "Freight & logistics"]);
 
+/** Factory stages a batch moves through; "done" means finished and reported. */
+export const PRODUCTION_STAGES = ["cooking", "filling", "sealing", "retort", "done"] as const;
+export type ProductionStage = (typeof PRODUCTION_STAGES)[number];
+
 export const STAGES = ["lead", "qualified", "proposal", "negotiation", "won", "lost"] as const;
 export const CONTACT_TYPES = ["lead", "customer", "distributor", "retailer"] as const;
 
