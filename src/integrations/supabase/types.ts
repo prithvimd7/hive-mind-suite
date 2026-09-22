@@ -535,6 +535,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      schedule_company_os_syncs: {
+        Args: {
+          p_cron_secret: string
+          p_days?: number
+          p_functions?: string[]
+          p_schedule?: string
+        }
+        Returns: {
+          function_name: string
+          job_name: string
+        }[]
+      }
+      unschedule_company_os_syncs: { Args: never; Returns: number }
     }
     Enums: {
       app_role: "ceo" | "salesperson"
