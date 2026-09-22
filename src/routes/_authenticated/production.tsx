@@ -13,6 +13,7 @@ import { useProducts, useDeleteProduct } from "@/hooks/use-products";
 import { useProductionLines, useDeleteProductionLine } from "@/hooks/use-production-lines";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { BatchesSection, useBatchKpis } from "@/components/app/batches-section";
+import { InProductionSection } from "@/components/app/in-production-section";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/production")({
@@ -34,11 +35,11 @@ function Production() {
 
   return (
     <div>
-      <PageHeader title="Production" description="Products, production lines, batches and quality." />
+      <PageHeader title="Production" description="Track each batch from cooking to done, then its yield and quality." />
 
       <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
         <KpiCard label="Products"        value={productsLoading ? "…" : String(products?.length ?? 0)} />
-        <KpiCard label="Production lines" value={linesLoading ? "…" : String(lines?.length ?? 0)} />
+        <KpiCard label="In production"   value={String(kpis.inProduction)} hint="Batches on the floor" />
         <KpiCard label="Today's production"  value={kpis.today.toLocaleString("en-IN")} hint="Units, all lines" />
         <KpiCard label="Capacity util. (7d)" value={kpis.utilization === null ? "—" : `${kpis.utilization.toFixed(0)}%`} hint="Produced ÷ line capacity" />
         <KpiCard label="Units (30d)"         value={kpis.units30.toLocaleString("en-IN")} />
@@ -47,7 +48,11 @@ function Production() {
         <KpiCard label="QC pass rate (30d)"  value={kpis.qcPass === null ? "—" : `${kpis.qcPass.toFixed(0)}%`} hint="Of batches with a QC result" />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6">
+        <InProductionSection products={products ?? []} lines={lines ?? []} />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <SectionCard
           title="Products"
           description="Your SKUs"
@@ -110,8 +115,8 @@ function Production() {
         </SectionCard>
 
         <SectionCard
-          title="Production lines"
-          description="Your factory lines"
+          title="Factory lines"
+          description="Equipment lines, used for capacity"
           action={
             <ProductionLineDialog trigger={<Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" />Add line</Button>} />
           }

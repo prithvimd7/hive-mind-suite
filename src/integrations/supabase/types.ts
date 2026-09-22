@@ -291,6 +291,7 @@ export type Database = {
           protein_pct: number | null
           qc_status: string
           rejects: number
+          stage: string
           units_planned: number
           units_produced: number
           updated_at: string
@@ -308,6 +309,7 @@ export type Database = {
           protein_pct?: number | null
           qc_status?: string
           rejects?: number
+          stage?: string
           units_planned?: number
           units_produced?: number
           updated_at?: string
@@ -325,6 +327,7 @@ export type Database = {
           protein_pct?: number | null
           qc_status?: string
           rejects?: number
+          stage?: string
           units_planned?: number
           units_produced?: number
           updated_at?: string

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { batches, type Batch } from "@/hooks/use-modules";
+import { batches, PRODUCTION_STAGES, type Batch } from "@/hooks/use-modules";
 import type { Product } from "@/hooks/use-products";
 import type { ProductionLine } from "@/hooks/use-production-lines";
 import { isoDaysAgo, shortDate, today } from "@/lib/format";
@@ -17,7 +17,9 @@ import { isoDaysAgo, shortDate, today } from "@/lib/format";
 export function useBatchKpis(lines: ProductionLine[]) {
   const { data } = batches.useList();
   return useMemo(() => {
-    const rows = data ?? [];
+    // Only finished batches have real output numbers; in-progress runs are counted separately.
+    const rows = (data ?? []).filter((b) => b.stage === "done");
+    const inProduction = (data ?? []).length - rows.length;
     const t = today(), d7 = isoDaysAgo(6), d30 = isoDaysAgo(30);
     const r30 = rows.filter((b) => b.batch_date >= d30);
     const r7 = rows.filter((b) => b.batch_date >= d7);
@@ -27,6 +29,7 @@ export function useBatchKpis(lines: ProductionLine[]) {
     const units7 = r7.reduce((a, b) => a + b.units_produced, 0);
     const qcDone = r30.filter((b) => b.qc_status !== "pending");
     return {
+      inProduction,
       today: rows.filter((b) => b.batch_date === t).reduce((a, b) => a + b.units_produced, 0),
       units30,
       yieldPct: units30 + rejects30 > 0 ? (units30 / (units30 + rejects30)) * 100 : null,
@@ -37,8 +40,10 @@ export function useBatchKpis(lines: ProductionLine[]) {
   }, [data, lines]);
 }
 
+/** Finished batches only — runs still on the floor live in the "In production" board. */
 export function BatchesSection({ products, lines }: { products: Product[]; lines: ProductionLine[] }) {
-  const { data, isLoading } = batches.useList();
+  const { data: allBatches, isLoading } = batches.useList();
+  const data = (allBatches ?? []).filter((b) => b.stage === "done");
   const create = batches.useCreate();
   const update = batches.useUpdate();
   const remove = batches.useDelete();
@@ -63,7 +68,7 @@ export function BatchesSection({ products, lines }: { products: Product[]; lines
     { name: "notes", label: "Notes", type: "textarea" },
   ];
 
-  const defaults = { batch_date: today(), units_planned: 0, units_produced: 0, rejects: 0, downtime_minutes: 0, qc_status: "pending", line_id: lines[0]?.id };
+  const defaults = { batch_date: today(), units_planned: 0, units_produced: 0, rejects: 0, downtime_minutes: 0, qc_status: "pending", stage: "done", line_id: lines[0]?.id };
   const save = (payload: Record<string, unknown>, id?: string) =>
     id ? update.mutateAsync({ id, ...payload }) : create.mutateAsync(payload as never);
 
