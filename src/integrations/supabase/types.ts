@@ -536,16 +536,15 @@ export type Database = {
         Returns: boolean
       }
       schedule_company_os_syncs: {
-        Args: {
-          p_cron_secret: string
-          p_days?: number
-          p_functions?: string[]
-          p_schedule?: string
-        }
+        Args: { p_days?: number; p_functions?: string[]; p_schedule?: string }
         Returns: {
           function_name: string
           job_name: string
         }[]
+      }
+      set_company_os_cron_secret: {
+        Args: { p_secret: string }
+        Returns: undefined
       }
       unschedule_company_os_syncs: { Args: never; Returns: number }
     }
