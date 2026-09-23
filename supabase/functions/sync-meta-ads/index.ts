@@ -8,7 +8,7 @@
 //   META_AD_ACCOUNT_ID  - numeric ad account id, WITHOUT the "act_" prefix
 //   CRON_SECRET         - shared secret; callers send `Authorization: Bearer <CRON_SECRET>`
 
-import { parseRange, requireEnv, serveSync, upsertAds, markSynced, type AdRow } from "../_shared/sync.ts";
+import { parseRange, requireEnv, serveSync, upsertAds, markSynced, HttpError, type AdRow } from "../_shared/sync.ts";
 
 const GRAPH_VERSION = "v21.0";
 
@@ -40,7 +40,15 @@ function purchases(rows: Action[] | undefined): number {
 serveSync("meta_ads", async (req, db) => {
   const env = requireEnv("META_ACCESS_TOKEN", "META_AD_ACCOUNT_ID");
   const { since, until } = parseRange(req);
-  const account = env.META_AD_ACCOUNT_ID.replace(/^act_/, "");
+  // Guard against the token being pasted into the account id secret (and vice versa): Meta would
+  // otherwise echo the whole credential back inside its error message.
+  const account = env.META_AD_ACCOUNT_ID.trim().replace(/^act_/, "");
+  if (!/^d+$/.test(account)) {
+    throw new HttpError(400, "META_AD_ACCOUNT_ID must be the numeric ad account id (digits only, no act_ prefix). It looks like a different value was saved in that secret.");
+  }
+  if (!env.META_ACCESS_TOKEN.trim().startsWith("EAA")) {
+    throw new HttpError(400, "META_ACCESS_TOKEN does not look like a Meta access token (it should start with EAA).");
+  }
 
   const fields = "campaign_name,spend,impressions,clicks,actions,action_values";
   let url: string =
@@ -50,7 +58,7 @@ serveSync("meta_ads", async (req, db) => {
 
   const rows: AdRow[] = [];
   while (url) {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` } });
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN.trim()}` } });
     const body = await res.json();
     if (body.error) throw new Error(`Meta API error (${body.error.code}): ${body.error.message}`);
     for (const r of body.data as InsightRow[]) {
