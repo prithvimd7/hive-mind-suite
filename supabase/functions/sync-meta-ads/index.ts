@@ -43,7 +43,7 @@ serveSync("meta_ads", async (req, db) => {
   // Guard against the token being pasted into the account id secret (and vice versa): Meta would
   // otherwise echo the whole credential back inside its error message.
   const account = env.META_AD_ACCOUNT_ID.trim().replace(/^act_/, "");
-  if (!/^d+$/.test(account)) {
+  if (!/^\d+$/.test(account)) {
     throw new HttpError(400, "META_AD_ACCOUNT_ID must be the numeric ad account id (digits only, no act_ prefix). It looks like a different value was saved in that secret.");
   }
   if (!env.META_ACCESS_TOKEN.trim().startsWith("EAA")) {
