@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { forwardRef, useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -196,11 +196,14 @@ export function RowActions({
   );
 }
 
-/** Small ghost pencil button, used as the trigger for edit dialogs. */
-export function EditButton() {
-  return (
-    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Edit">
-      <Pencil className="h-3.5 w-3.5" />
-    </Button>
-  );
-}
+/**
+ * Small ghost pencil button, used as the trigger for edit dialogs.
+ * Must forward props and ref: DialogTrigger renders with `asChild`, so it clones this element and
+ * passes the click handler down. Without forwarding, the pencil renders but nothing opens.
+ */
+export const EditButton = forwardRef<HTMLButtonElement, ComponentProps<typeof Button>>((props, ref) => (
+  <Button ref={ref} size="icon" variant="ghost" className="h-8 w-8" aria-label="Edit" {...props}>
+    <Pencil className="h-3.5 w-3.5" />
+  </Button>
+));
+EditButton.displayName = "EditButton";
