@@ -16,6 +16,7 @@ import {
   expenses, invoices, EXPENSE_CATEGORIES, COGS_CATEGORIES, isInvoiceOverdue, type Expense, type Invoice,
 } from "@/hooks/use-modules";
 import { currency, delta, pct, shortDate, today } from "@/lib/format";
+import { StatementImport } from "@/components/app/statement-import";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [
@@ -81,6 +82,7 @@ function Finance() {
         description="P&L, cash flow, receivables and payables — last 30 days."
         actions={
           <>
+            <StatementImport />
             <RecordDialog<Invoice>
               title="Invoice" fields={invoiceFields} onSave={saveInvoice}
               defaults={{ issue_date: today(), status: "sent", amount: 0, gst_amount: 0 }}

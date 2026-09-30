@@ -140,6 +140,30 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_import_rules: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_cogs: boolean
+          pattern: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_cogs?: boolean
+          pattern: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_cogs?: boolean
+          pattern?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -148,6 +172,7 @@ export type Database = {
           due_date: string | null
           expense_date: string
           gst_amount: number
+          import_ref: string | null
           id: string
           is_cogs: boolean
           notes: string | null
@@ -161,6 +186,7 @@ export type Database = {
           due_date?: string | null
           expense_date?: string
           gst_amount?: number
+          import_ref?: string | null
           id?: string
           is_cogs?: boolean
           notes?: string | null
@@ -174,6 +200,7 @@ export type Database = {
           due_date?: string | null
           expense_date?: string
           gst_amount?: number
+          import_ref?: string | null
           id?: string
           is_cogs?: boolean
           notes?: string | null

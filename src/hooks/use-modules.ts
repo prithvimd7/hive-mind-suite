@@ -8,6 +8,7 @@ export type Expense = Tables<"expenses">;
 export type Invoice = Tables<"invoices">;
 export type Contact = Tables<"crm_contacts">;
 export type TeamMember = Tables<"team_members">;
+export type ImportRule = Tables<"expense_import_rules">;
 
 // "business_snapshot" is the executive dashboard's aggregate query — refresh it whenever source data changes.
 const DASH = ["business_snapshot"];
@@ -17,6 +18,8 @@ export const inventory = createTableHooks("inventory_items", { orderBy: "name", 
 export const expenses = createTableHooks("expenses", { orderBy: "expense_date", alsoInvalidate: DASH });
 export const invoices = createTableHooks("invoices", { orderBy: "issue_date", alsoInvalidate: DASH });
 export const contacts = createTableHooks("crm_contacts", { orderBy: "updated_at", alsoInvalidate: DASH });
+export const importRules = createTableHooks("expense_import_rules", { orderBy: "pattern", ascending: true });
+
 export const team = createTableHooks("team_members", { orderBy: "kpi_score", alsoInvalidate: DASH });
 
 export const EXPENSE_CATEGORIES = [
