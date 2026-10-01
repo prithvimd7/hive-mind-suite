@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DateRangePicker } from "@/components/app/date-range-picker";
 import { DashboardHeadline } from "@/components/app/dashboard-headline";
-import { DEFAULT_RANGE, RANGE_KEYS, RANGE_PRESETS, formatRange, resolveRange, type RangeKey } from "@/lib/date-range";
+import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } from "@/lib/date-range";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({ meta: [
@@ -24,17 +24,15 @@ export const Route = createFileRoute("/_authenticated/")({
     { property: "og:title", content: "Executive — Company OS" },
     { property: "og:description", content: "Executive overview across the business." },
   ]}),
-  validateSearch: (search: Record<string, unknown>): { range?: RangeKey } =>
-    RANGE_KEYS.includes(search.range as RangeKey) ? { range: search.range as RangeKey } : {},
+  validateSearch: validateRangeSearch,
   component: Executive,
 });
 
 function Executive() {
   const navigate = Route.useNavigate();
-  const rangeKey = Route.useSearch().range ?? DEFAULT_RANGE;
-  const range = resolveRange(rangeKey);
-  const short = RANGE_PRESETS[rangeKey].short;
-  const setRange = (k: RangeKey) => navigate({ search: k === DEFAULT_RANGE ? {} : { range: k }, replace: true });
+  const selection = Route.useSearch();
+  const { range, label: rangeLabel, short } = resolveSelection(selection);
+  const setRange = (next: RangeSearch) => navigate({ search: next, replace: true });
 
   const { data, isLoading } = useSalesData(range);
   const snap = useBusinessSnapshot({ range });
@@ -45,9 +43,9 @@ function Executive() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <DashboardHeadline snapshot={s} rangeKey={rangeKey} loading={loading} />
+        <DashboardHeadline snapshot={s} rangeLabel={rangeLabel} loading={loading} />
         <div className="flex items-center gap-2 shrink-0">
-          <DateRangePicker value={rangeKey} onChange={setRange} />
+          <DateRangePicker value={selection} onChange={setRange} />
           <Button
             size="sm"
             variant="outline"
@@ -60,7 +58,7 @@ function Executive() {
       </div>
 
       <div className="text-[11px] text-muted-foreground mb-2.5">
-        {RANGE_PRESETS[rangeKey].label} · {formatRange(range)}
+        {rangeLabel} · {formatRange(range)}
       </div>
 
       <div className={cn("transition-opacity", (snap.isPlaceholderData || snap.isFetching) && !loading && "opacity-60")}>
@@ -121,7 +119,7 @@ function Executive() {
       )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <SectionCard title="Revenue trend" description={`${RANGE_PRESETS[rangeKey].label}${data && data.revenueTrend.length && data.revenueTrend[0].label.startsWith("w/c") ? ", weekly" : ""}`} className="lg:col-span-2">
+        <SectionCard title="Revenue trend" description={`${rangeLabel}${data && data.revenueTrend.length && data.revenueTrend[0].label.startsWith("w/c") ? ", weekly" : ""}`} className="lg:col-span-2">
           {isLoading ? (
             <Skeleton className="h-[280px] rounded-xl" />
           ) : data?.hasData ? (
@@ -159,7 +157,7 @@ function Executive() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <SectionCard title="Revenue by channel" description={RANGE_PRESETS[rangeKey].label}>
+        <SectionCard title="Revenue by channel" description={rangeLabel}>
           {isLoading ? (
             <Skeleton className="h-[280px] rounded-xl" />
           ) : data?.hasData ? (

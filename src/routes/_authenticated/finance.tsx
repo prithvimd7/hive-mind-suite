@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Plus, Check } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { DateRangePicker } from "@/components/app/date-range-picker";
-import { DEFAULT_RANGE, RANGE_PRESETS, formatRange, resolveRange, validateRangeSearch, type RangeKey } from "@/lib/date-range";
+import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } from "@/lib/date-range";
 import { KpiCard } from "@/components/app/kpi-card";
 import { SectionCard } from "@/components/app/section-card";
 import { EmptyState } from "@/components/app/empty-state";
@@ -60,9 +60,9 @@ const invoiceFields: Field[] = [
 
 function Finance() {
   const navigate = Route.useNavigate();
-  const rangeKey = Route.useSearch().range ?? DEFAULT_RANGE;
-  const range = resolveRange(rangeKey);
-  const setRange = (k: RangeKey) => navigate({ search: k === DEFAULT_RANGE ? {} : { range: k }, replace: true });
+  const selection = Route.useSearch();
+  const { range, label: rangeLabel, short } = resolveSelection(selection);
+  const setRange = (next: RangeSearch) => navigate({ search: next, replace: true });
   const snap = useBusinessSnapshot({ range });
   const s = snap.data;
   const exp = expenses.useList();
@@ -86,10 +86,10 @@ function Finance() {
     <div>
       <PageHeader
         title="Finance"
-        description={`P&L and cash flow · ${RANGE_PRESETS[rangeKey].label} · ${formatRange(range)}`}
+        description={`P&L and cash flow · ${rangeLabel} · ${formatRange(range)}`}
         actions={
           <>
-            <DateRangePicker value={rangeKey} onChange={setRange} />
+            <DateRangePicker value={selection} onChange={setRange} />
             <StatementImport />
             <RecordDialog<Invoice>
               title="Invoice" fields={invoiceFields} onSave={saveInvoice}
