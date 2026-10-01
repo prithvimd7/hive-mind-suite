@@ -16,8 +16,17 @@ export interface ChannelBreakdown {
   conv: number;
 }
 
+/** One row per day and channel, for drilling into a channel or month. */
+export interface SalesDayRow {
+  date: string;
+  channel: string;
+  revenue: number;
+  orders: number;
+}
+
 export interface SalesData {
   hasData: boolean;
+  rows: SalesDayRow[];
   totalRevenue: number;
   todayRevenue: number;
   monthRevenue: number;
@@ -29,6 +38,7 @@ export interface SalesData {
 
 const EMPTY: SalesData = {
   hasData: false,
+  rows: [],
   totalRevenue: 0,
   todayRevenue: 0,
   monthRevenue: 0,
@@ -97,8 +107,19 @@ export function useSalesData(period: number | DateRange = 30) {
         conv: 0, // no session/traffic data yet to compute real conversion
       }));
 
+      const perDay = new Map<string, SalesDayRow>();
+      for (const r of rangeRows) {
+        const channel = r.channel ?? "Other";
+        const key = `${r.order_date}|${channel}`;
+        const cur = perDay.get(key) ?? { date: r.order_date, channel, revenue: 0, orders: 0 };
+        cur.revenue += Number(r.revenue);
+        cur.orders += Number(r.orders);
+        perDay.set(key, cur);
+      }
+
       return {
         hasData: rangeRows.length > 0,
+        rows: [...perDay.values()].sort((a, b) => a.date.localeCompare(b.date)),
         totalRevenue,
         todayRevenue,
         monthRevenue,

@@ -43,7 +43,14 @@ export function RevenueArea({ data }: { data: any[] }) {
   );
 }
 
-export function BarsChart({ data, xKey = "channel", yKey = "revenue" }: { data: any[]; xKey?: string; yKey?: string }) {
+export function BarsChart({
+  data, xKey = "channel", yKey = "revenue", onSelect,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any[]; xKey?: string; yKey?: string;
+  /** Called with the clicked bar's x value, for drill-down. */
+  onSelect?: (value: string) => void;
+}) {
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} margin={{ top: 10, right: 12, left: -12, bottom: 0 }}>
@@ -51,7 +58,13 @@ export function BarsChart({ data, xKey = "channel", yKey = "revenue" }: { data: 
         <XAxis dataKey={xKey} tickLine={false} axisLine={false} {...AXIS} />
         <YAxis tickLine={false} axisLine={false} {...AXIS} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
         <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
-        <Bar dataKey={yKey} fill="var(--foreground)" radius={[8, 8, 0, 0]} />
+        <Bar
+          dataKey={yKey}
+          fill="var(--foreground)"
+          radius={[6, 6, 0, 0]}
+          cursor={onSelect ? "pointer" : undefined}
+          onClick={onSelect ? (d: Record<string, unknown>) => onSelect(String(d?.[xKey] ?? "")) : undefined}
+        />
       </BarChart>
     </ResponsiveContainer>
   );
