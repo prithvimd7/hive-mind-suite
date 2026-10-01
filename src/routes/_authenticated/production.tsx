@@ -11,6 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useProducts, useDeleteProduct } from "@/hooks/use-products";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { BatchesSection, useBatchKpis } from "@/components/app/batches-section";
+import { DateRangePicker } from "@/components/app/date-range-picker";
+import { ItemsProduced } from "@/components/app/items-produced";
+import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } from "@/lib/date-range";
 import { InProductionSection } from "@/components/app/in-production-section";
 import { toast } from "sonner";
 
@@ -21,26 +24,35 @@ export const Route = createFileRoute("/_authenticated/production")({
     { property: "og:title", content: "Production — Company OS" },
     { property: "og:description", content: "Factory floor performance and quality." },
   ]}),
+  validateSearch: validateRangeSearch,
   component: Production,
 });
 
 function Production() {
   const { data: products, isLoading: productsLoading } = useProducts();
   const deleteProduct = useDeleteProduct();
-  const kpis = useBatchKpis();
+  const navigate = Route.useNavigate();
+  const selection = Route.useSearch();
+  const { range, label: rangeLabel, short } = resolveSelection(selection);
+  const setRange = (next: RangeSearch) => navigate({ search: next, replace: true });
+  const kpis = useBatchKpis(range);
 
   return (
     <div>
-      <PageHeader title="Production" description="Track each batch from cooking to done, then its yield and quality." />
+      <PageHeader
+        title="Production"
+        description={`${rangeLabel} · ${formatRange(range)}`}
+        actions={<DateRangePicker value={selection} onChange={setRange} />}
+      />
 
       <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
         <KpiCard label="Products"        value={productsLoading ? "…" : String(products?.length ?? 0)} />
         <KpiCard label="In production"   value={String(kpis.inProduction)} hint="Batches on the floor" />
         <KpiCard label="Today's production"  value={kpis.today.toLocaleString("en-IN")} hint="Units produced" />
-        <KpiCard label="Units (30d)"         value={kpis.units30.toLocaleString("en-IN")} />
-        <KpiCard label="Yield (30d)"         value={kpis.yieldPct === null ? "—" : `${kpis.yieldPct.toFixed(1)}%`} hint="Good units ÷ (good + rejects)" />
-        <KpiCard label="Downtime (30d)"      value={`${(kpis.downtime30 / 60).toFixed(1)} h`} />
-        <KpiCard label="QC pass rate (30d)"  value={kpis.qcPass === null ? "—" : `${kpis.qcPass.toFixed(0)}%`} hint="Of batches with a QC result" />
+        <KpiCard label={`Units (${short})`}      value={kpis.units30.toLocaleString("en-IN")} />
+        <KpiCard label={`Yield (${short})`}      value={kpis.yieldPct === null ? "—" : `${kpis.yieldPct.toFixed(1)}%`} hint="Good units ÷ (good + rejects)" />
+        <KpiCard label={`Downtime (${short})`}   value={`${(kpis.downtime30 / 60).toFixed(1)} h`} />
+        <KpiCard label={`QC pass rate (${short})`} value={kpis.qcPass === null ? "—" : `${kpis.qcPass.toFixed(0)}%`} hint="Of batches with a QC result" />
       </div>
 
       <div className="mt-6">
@@ -112,7 +124,11 @@ function Production() {
       </div>
 
       <div className="mt-4">
-        <BatchesSection products={products ?? []} />
+        <ItemsProduced products={products ?? []} range={range} rangeLabel={rangeLabel} />
+      </div>
+
+      <div className="mt-3">
+        <BatchesSection products={products ?? []} range={range} />
       </div>
     </div>
   );

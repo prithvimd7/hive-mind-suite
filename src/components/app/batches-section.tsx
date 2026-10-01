@@ -12,15 +12,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { batches, PRODUCTION_STAGES, type Batch } from "@/hooks/use-modules";
 import type { Product } from "@/hooks/use-products";
 import { isoDaysAgo, shortDate, today } from "@/lib/format";
+import type { DateRange } from "@/lib/date-range";
 
-export function useBatchKpis() {
+export function useBatchKpis(range: DateRange) {
   const { data } = batches.useList();
   return useMemo(() => {
     // Only finished batches have real output numbers; in-progress runs are counted separately.
     const rows = (data ?? []).filter((b) => b.stage === "done");
     const inProduction = (data ?? []).length - rows.length;
-    const t = today(), d30 = isoDaysAgo(30);
-    const r30 = rows.filter((b) => b.batch_date >= d30);
+    const t = today();
+    const r30 = rows.filter((b) => b.batch_date >= range.since && b.batch_date <= range.until);
     const units30 = r30.reduce((a, b) => a + b.units_produced, 0);
     const rejects30 = r30.reduce((a, b) => a + b.rejects, 0);
     const qcDone = r30.filter((b) => b.qc_status !== "pending");
@@ -32,13 +33,15 @@ export function useBatchKpis() {
       downtime30: r30.reduce((a, b) => a + b.downtime_minutes, 0),
       qcPass: qcDone.length ? (qcDone.filter((b) => b.qc_status === "passed").length / qcDone.length) * 100 : null,
     };
-  }, [data]);
+  }, [data, range.since, range.until]);
 }
 
 /** Finished batches only — runs still on the floor live in the "In production" board. */
-export function BatchesSection({ products }: { products: Product[] }) {
+export function BatchesSection({ products, range }: { products: Product[]; range: DateRange }) {
   const { data: allBatches, isLoading } = batches.useList();
-  const data = (allBatches ?? []).filter((b) => b.stage === "done");
+  const data = (allBatches ?? []).filter(
+    (b) => b.stage === "done" && b.batch_date >= range.since && b.batch_date <= range.until,
+  );
   const create = batches.useCreate();
   const update = batches.useUpdate();
   const remove = batches.useDelete();

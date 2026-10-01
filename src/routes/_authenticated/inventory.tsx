@@ -16,6 +16,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { inventory, isCriticalStock, isLowStock, type InventoryItem } from "@/hooks/use-modules";
 import { useProducts } from "@/hooks/use-products";
 import { currency, isoDaysAgo, shortDate } from "@/lib/format";
+import { DateRangePicker } from "@/components/app/date-range-picker";
+import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } from "@/lib/date-range";
+import { byProduct, useSalesItems } from "@/hooks/use-sales-items";
+import { batches } from "@/hooks/use-modules";
 import { downloadCsv } from "@/lib/csv-export";
 
 export const Route = createFileRoute("/_authenticated/inventory")({
@@ -25,12 +29,19 @@ export const Route = createFileRoute("/_authenticated/inventory")({
     { property: "og:title", content: "Inventory — Company OS" },
     { property: "og:description", content: "Complete inventory visibility across the warehouse." },
   ]}),
+  validateSearch: validateRangeSearch,
   component: Inventory,
 });
 
 const TYPE_LABEL: Record<string, string> = { raw: "Raw material", finished: "Finished good", packaging: "Packaging" };
 
 function Inventory() {
+  const navigate = Route.useNavigate();
+  const selection = Route.useSearch();
+  const { range, label: rangeLabel } = resolveSelection(selection);
+  const setRange = (next: RangeSearch) => navigate({ search: next, replace: true });
+  const { data: soldRows } = useSalesItems(range);
+  const { data: batchRows } = batches.useList();
   const { data, isLoading } = inventory.useList();
   const { data: products } = useProducts();
   const create = inventory.useCreate();
@@ -56,6 +67,37 @@ function Inventory() {
   }, [items, soon]);
 
   const visible = items.filter((i) => (filter === "all" ? true : filter === "low" ? isLowStock(i) : i.item_type === filter));
+
+  // What moved during the chosen period, per product name.
+  const movement = useMemo(() => {
+    const sold = byProduct(soldRows ?? []);
+    const made = new Map<string, number>();
+    for (const b of batchRows ?? []) {
+      if (b.stage !== "done") continue;
+      if (b.batch_date < range.since || b.batch_date > range.until) continue;
+      const name = (products ?? []).find((p) => p.id === b.product_id)?.name;
+      if (name) made.set(name, (made.get(name) ?? 0) + b.units_produced);
+    }
+    const names = new Set<string>([...sold.map((s) => s.product), ...made.keys()]);
+    const stockOf = (name: string) => items.find((i) => i.name.toLowerCase() === name.toLowerCase());
+    return [...names]
+      .map((name) => {
+        const s = sold.find((x) => x.product === name);
+        const item = stockOf(name);
+        return {
+          name,
+          soldUnits: s?.quantity ?? 0,
+          soldRevenue: s?.revenue ?? 0,
+          made: made.get(name) ?? 0,
+          stock: item ? Number(item.stock) : null,
+          unit: item?.unit ?? "",
+        };
+      })
+      .sort((a, b) => b.soldUnits - a.soldUnits);
+  }, [soldRows, batchRows, products, items, range.since, range.until]);
+
+  const totalSold = movement.reduce((a, m) => a + m.soldUnits, 0);
+  const totalMade = movement.reduce((a, m) => a + m.made, 0);
 
   const fields: Field[] = [
     { name: "sku", label: "SKU", required: true },
@@ -94,9 +136,10 @@ function Inventory() {
     <div>
       <PageHeader
         title="Inventory"
-        description="Stock, reorder alerts and expiry across raw materials, packaging and finished goods."
+        description={`Stock now · movement in ${rangeLabel.toLowerCase()} (${formatRange(range)})`}
         actions={
           <>
+            <DateRangePicker value={selection} onChange={setRange} />
             <Button
               size="sm" variant="outline" className="gap-1.5"
               onClick={() => {
@@ -126,12 +169,57 @@ function Inventory() {
         <KpiCard label="SKUs tracked"    value={String(items.length)} />
         <KpiCard label="Low stock"       value={String(stats.low)} hint="At or below reorder level" />
         <KpiCard label="Expiring ≤30d"   value={String(stats.expiring)} />
+        <KpiCard label="Units sold"      value={totalSold.toLocaleString("en-IN")} hint={rangeLabel} />
+        <KpiCard label="Units made"      value={totalMade.toLocaleString("en-IN")} hint={rangeLabel} />
         <KpiCard label="Raw materials"   value={currency(stats.raw)} />
         <KpiCard label="Finished goods"  value={currency(stats.finished)} />
         <KpiCard label="Packaging"       value={currency(stats.packaging)} />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-4">
+        <SectionCard
+          title="Sold and made"
+          description={`${rangeLabel} · ${formatRange(range)} — stock column is today's figure`}
+        >
+          {movement.length === 0 ? (
+            <EmptyState
+              title="No movement in this period"
+              description="Sold units come from Shopify and Amazon item data; made units come from finished production batches."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item</TableHead>
+                    <TableHead className="text-right">Sold</TableHead>
+                    <TableHead className="text-right hidden sm:table-cell">Sales value</TableHead>
+                    <TableHead className="text-right">Made</TableHead>
+                    <TableHead className="text-right">In stock now</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {movement.map((m) => (
+                    <TableRow key={m.name}>
+                      <TableCell className="font-medium">{m.name}</TableCell>
+                      <TableCell className="text-right">{m.soldUnits.toLocaleString("en-IN")}</TableCell>
+                      <TableCell className="text-right hidden sm:table-cell">{currency(m.soldRevenue)}</TableCell>
+                      <TableCell className="text-right">{m.made.toLocaleString("en-IN")}</TableCell>
+                      <TableCell className="text-right">
+                        {m.stock === null
+                          ? <span className="text-muted-foreground">not tracked</span>
+                          : `${m.stock.toLocaleString("en-IN")} ${m.unit}`}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-3">
         <SectionCard
           title="Stock levels"
           action={
