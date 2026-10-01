@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app/page-header";
 import { DateRangePicker } from "@/components/app/date-range-picker";
-import { DEFAULT_RANGE, RANGE_PRESETS, formatRange, resolveRange, validateRangeSearch, type RangeKey } from "@/lib/date-range";
+import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } from "@/lib/date-range";
 import { KpiCard } from "@/components/app/kpi-card";
 import { SectionCard } from "@/components/app/section-card";
 import { EmptyState } from "@/components/app/empty-state";
@@ -29,17 +29,17 @@ export const Route = createFileRoute("/_authenticated/marketing")({
 
 function Marketing() {
   const navigate = Route.useNavigate();
-  const rangeKey = Route.useSearch().range ?? DEFAULT_RANGE;
-  const range = resolveRange(rangeKey);
-  const setRange = (k: RangeKey) => navigate({ search: k === DEFAULT_RANGE ? {} : { range: k }, replace: true });
+  const selection = Route.useSearch();
+  const { range, label: rangeLabel, short } = resolveSelection(selection);
+  const setRange = (next: RangeSearch) => navigate({ search: next, replace: true });
   const { data, isLoading } = useMarketingData(range);
 
   return (
     <div>
       <PageHeader
         title="Marketing"
-        description={`${RANGE_PRESETS[rangeKey].label} · ${formatRange(range)}`}
-        actions={<><DateRangePicker value={rangeKey} onChange={setRange} /><AdSpendDialog /></>}
+        description={`${rangeLabel} · ${formatRange(range)}`}
+        actions={<><DateRangePicker value={selection} onChange={setRange} /><AdSpendDialog /></>}
       />
 
       {isLoading ? (
@@ -49,7 +49,7 @@ function Marketing() {
       ) : !data?.hasData ? (
         <SectionCard title="No ad spend data yet">
           <EmptyState
-            title={`No ad spend recorded in ${RANGE_PRESETS[rangeKey].label.toLowerCase()}`}
+            title={`No ad spend recorded in ${rangeLabel.toLowerCase()}`}
             description="Add an entry manually, or sync Meta, Google or Amazon Ads from Integrations."
             ctaLabel="Add ad spend"
             ctaTo="/integrations"

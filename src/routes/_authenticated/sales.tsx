@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app/page-header";
 import { DateRangePicker } from "@/components/app/date-range-picker";
-import { DEFAULT_RANGE, RANGE_PRESETS, formatRange, resolveRange, validateRangeSearch, type RangeKey } from "@/lib/date-range";
+import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } from "@/lib/date-range";
 import { KpiCard } from "@/components/app/kpi-card";
 import { SectionCard } from "@/components/app/section-card";
 import { EmptyState } from "@/components/app/empty-state";
@@ -26,17 +26,17 @@ export const Route = createFileRoute("/_authenticated/sales")({
 
 function Sales() {
   const navigate = Route.useNavigate();
-  const rangeKey = Route.useSearch().range ?? DEFAULT_RANGE;
-  const range = resolveRange(rangeKey);
-  const setRange = (k: RangeKey) => navigate({ search: k === DEFAULT_RANGE ? {} : { range: k }, replace: true });
+  const selection = Route.useSearch();
+  const { range, label: rangeLabel, short } = resolveSelection(selection);
+  const setRange = (next: RangeSearch) => navigate({ search: next, replace: true });
   const { data, isLoading } = useSalesData(range);
 
   return (
     <div>
       <PageHeader
         title="Sales & Revenue"
-        description={`${RANGE_PRESETS[rangeKey].label} · ${formatRange(range)}`}
-        actions={<DateRangePicker value={rangeKey} onChange={setRange} />}
+        description={`${rangeLabel} · ${formatRange(range)}`}
+        actions={<DateRangePicker value={selection} onChange={setRange} />}
       />
 
       {isLoading ? (
@@ -46,7 +46,7 @@ function Sales() {
       ) : !data?.hasData ? (
         <SectionCard title="No sales data yet">
           <EmptyState
-            title={`No sales recorded in ${RANGE_PRESETS[rangeKey].label.toLowerCase()}`}
+            title={`No sales recorded in ${rangeLabel.toLowerCase()}`}
             description="Add entries manually or connect Shopify / Amazon / Blinkit from Integrations to see real revenue here."
             ctaLabel="Add a sale"
             ctaTo="/entry"
@@ -57,8 +57,8 @@ function Sales() {
           <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3">
             <KpiCard label="Today's Sales" value={currency(data.todayRevenue)} to="/finance" />
             <KpiCard label="Month Sales" value={currency(data.monthRevenue)} to="/finance" />
-            <KpiCard label={`Revenue (${RANGE_PRESETS[rangeKey].short})`} value={currency(data.totalRevenue)} to="/finance" />
-            <KpiCard label={`Orders (${RANGE_PRESETS[rangeKey].short})`} value={compact(data.totalOrders)} />
+            <KpiCard label={`Revenue (${short})`} value={currency(data.totalRevenue)} to="/finance" />
+            <KpiCard label={`Orders (${short})`} value={compact(data.totalOrders)} />
             <KpiCard label="AOV"      value={currency(Math.round(data.aov))} />
             <KpiCard label="Channels" value={String(data.byChannel.length)} />
           </div>

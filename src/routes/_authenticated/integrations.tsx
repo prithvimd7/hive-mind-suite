@@ -21,7 +21,8 @@ import {
 import { triggerSync, type SyncKind } from "@/lib/sync.functions";
 import { useRole } from "@/hooks/use-role";
 import { parseAdsCsv, parseSalesCsv, type AdCsvRow, type SalesCsvRow } from "@/lib/csv-import";
-import { isoDaysAgo, localIso, today } from "@/lib/format";
+import { DateRangePicker } from "@/components/app/date-range-picker";
+import { resolveSelection, type RangeSearch } from "@/lib/date-range";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
   head: () => ({ meta: [
@@ -34,24 +35,6 @@ export const Route = createFileRoute("/_authenticated/integrations")({
 });
 
 type Kind = "shopify" | "amazon_seller" | "meta_ads" | "amazon_ads" | "google_ads" | "blinkit" | "offline";
-
-const RANGE_PRESETS = {
-  last7:     { label: "Last 7 days",  compute: () => ({ since: isoDaysAgo(7), until: today() }) },
-  last30:    { label: "Last 30 days", compute: () => ({ since: isoDaysAgo(30), until: today() }) },
-  last90:    { label: "Last 90 days", compute: () => ({ since: isoDaysAgo(90), until: today() }) },
-  thisMonth: {
-    label: "This month",
-    compute: () => { const n = new Date(); return { since: localIso(new Date(n.getFullYear(), n.getMonth(), 1)), until: today() }; },
-  },
-  lastMonth: {
-    label: "Last month",
-    compute: () => {
-      const n = new Date();
-      return { since: localIso(new Date(n.getFullYear(), n.getMonth() - 1, 1)), until: localIso(new Date(n.getFullYear(), n.getMonth(), 0)) };
-    },
-  },
-} as const;
-type RangeKey = keyof typeof RANGE_PRESETS;
 
 interface Source {
   kind: Kind;
@@ -277,7 +260,7 @@ function SourceCard({
 }) {
   const Icon = cfg.icon;
   const st = STATUS[row?.status ?? ""] ?? { label: cfg.live ? "Not connected" : "CSV only", icon: Circle, variant: "secondary" as const };
-  const [range, setRange] = useState<RangeKey>("last30");
+  const [selection, setSelection] = useState<RangeSearch>({ range: "30d" });
 
   const handleFile = async (file: File) => {
     try {
@@ -313,15 +296,8 @@ function SourceCard({
       {cfg.live && onSync && canSync && (
         <div className="space-y-2">
           <div className="flex gap-2">
-            <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
-              <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(RANGE_PRESETS).map(([key, p]) => (
-                  <SelectItem key={key} value={key} className="text-xs">{p.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button size="sm" onClick={() => onSync(RANGE_PRESETS[range].compute())} disabled={syncing} className="gap-1.5">
+            <DateRangePicker value={selection} onChange={setSelection} className="h-8" />
+            <Button size="sm" onClick={() => onSync(resolveSelection(selection).range)} disabled={syncing} className="gap-1.5">
               <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Syncing…" : "Sync now"}
             </Button>

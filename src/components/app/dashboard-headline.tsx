@@ -1,7 +1,7 @@
 import { useRole } from "@/hooks/use-role";
 import type { BusinessSnapshot } from "@/hooks/use-business-snapshot";
 import { currency, pct } from "@/lib/format";
-import { RANGE_PRESETS, type RangeKey } from "@/lib/date-range";
+
 import { Skeleton } from "@/components/ui/skeleton";
 
 const greeting = () => {
@@ -10,10 +10,11 @@ const greeting = () => {
 };
 
 /** One plain-English sentence about how the period is going, written from the snapshot. */
-function summarise(s: BusinessSnapshot, rangeKey: RangeKey): string {
-  const period = RANGE_PRESETS[rangeKey].short;
+function summarise(s: BusinessSnapshot, label: string): string {
+  // "Last 30 days" reads as "the last 30 days"; a month like "April 2026" stands alone.
+  const period = /^last/i.test(label) ? `the ${label.toLowerCase()}` : label;
   if (s.revenue === 0) {
-    return `No sales recorded in the last ${period}. Sync a channel or add a sale to get started.`;
+    return `No sales recorded in ${period}. Sync a channel or add a sale to get started.`;
   }
 
   const parts: string[] = [];
@@ -22,11 +23,11 @@ function summarise(s: BusinessSnapshot, rangeKey: RangeKey): string {
     const word = change >= 1 ? "ahead of" : change <= -1 ? "behind" : "level with";
     parts.push(
       Math.abs(change) < 1
-        ? `Revenue is ${currency(s.revenue)}, level with the previous ${period}.`
-        : `Revenue is ${currency(s.revenue)}, ${Math.abs(change).toFixed(0)}% ${word} the previous ${period}.`,
+        ? `Revenue is ${currency(s.revenue)}, level with the previous period.`
+        : `Revenue is ${currency(s.revenue)}, ${Math.abs(change).toFixed(0)}% ${word} the previous period.`,
     );
   } else {
-    parts.push(`Revenue is ${currency(s.revenue)} over the last ${period}.`);
+    parts.push(`Revenue is ${currency(s.revenue)} in ${period}.`);
   }
 
   if (s.expenses === 0 && s.adSpend === 0) {
@@ -44,8 +45,8 @@ function summarise(s: BusinessSnapshot, rangeKey: RangeKey): string {
 }
 
 export function DashboardHeadline({
-  snapshot, rangeKey, loading,
-}: { snapshot?: BusinessSnapshot; rangeKey: RangeKey; loading: boolean }) {
+  snapshot, rangeLabel, loading,
+}: { snapshot?: BusinessSnapshot; rangeLabel: string; loading: boolean }) {
   const { name } = useRole();
   const firstName = (name ?? "").split(" ")[0];
 
@@ -57,7 +58,7 @@ export function DashboardHeadline({
       {loading || !snapshot ? (
         <Skeleton className="h-4 w-80 mt-2" />
       ) : (
-        <p className="text-[13.5px] text-muted-foreground mt-1.5 max-w-3xl">{summarise(snapshot, rangeKey)}</p>
+        <p className="text-[13.5px] text-muted-foreground mt-1.5 max-w-3xl">{summarise(snapshot, rangeLabel.toLowerCase())}</p>
       )}
     </div>
   );
