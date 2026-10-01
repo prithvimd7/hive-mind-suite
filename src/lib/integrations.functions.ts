@@ -23,6 +23,17 @@ export const listDataSources = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+/** Channel shown on the Sales page when a CSV has no channel column of its own. */
+const SOURCE_CHANNEL: Record<string, string> = {
+  shopify: "Shopify",
+  amazon_seller: "Amazon",
+  blinkit: "Blinkit",
+  offline: "Offline",
+  meta_ads: "Meta Ads",
+  amazon_ads: "Amazon Ads",
+  google_ads: "Google Ads",
+};
+
 const SalesRow = z.object({
   order_date: z.string(),
   channel: z.string().optional().nullable(),
@@ -38,7 +49,13 @@ export const importSalesRows = createServerFn({ method: "POST" })
     z.object({ source: SourceKind, rows: z.array(SalesRow).max(5000) }).parse(v),
   )
   .handler(async ({ data, context }) => {
-    const payload = data.rows.map((r) => ({ ...r, source: data.source }));
+    // Without a channel the rows would all land under "Other" on the Sales page, so a CSV
+    // uploaded on a card is attributed to that card's channel.
+    const payload = data.rows.map((r) => ({
+      ...r,
+      channel: r.channel?.trim() || SOURCE_CHANNEL[data.source],
+      source: data.source,
+    }));
     const { error, count } = await context.supabase
       .from("sales_imports")
       .insert(payload, { count: "exact" });
