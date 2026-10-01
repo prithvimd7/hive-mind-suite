@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { batches, PRODUCTION_STAGES, today, type Batch } from "@/hooks/use-modules";
 import type { Product } from "@/hooks/use-products";
-import type { ProductionLine } from "@/hooks/use-production-lines";
 import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -20,16 +19,13 @@ const STAGE_OPTIONS = PRODUCTION_STAGES.map((s) => ({ value: s, label: cap(s) })
 /** Batches still on the floor (everything except "done"). */
 export const isInProduction = (b: Batch) => b.stage !== "done";
 
-export function runFields(products: Product[], lines: ProductionLine[]): Field[] {
+export function runFields(products: Product[]): Field[] {
   return [
     { name: "batch_code", label: "Batch code", required: true },
     { name: "batch_date", label: "Start date", type: "date", required: true },
     { name: "product_id", label: "Product", type: "select", required: true, options: products.map((p) => ({ value: p.id, label: p.name })) },
     { name: "stage", label: "Stage", type: "select", required: true, options: STAGE_OPTIONS },
     { name: "units_planned", label: "Units planned", type: "number", min: 0, required: true },
-    ...(lines.length
-      ? [{ name: "line_id", label: "Line", type: "select", options: [{ value: "", label: "None" }, ...lines.map((l) => ({ value: l.id, label: l.name }))] } as Field]
-      : []),
     { name: "notes", label: "Notes", type: "textarea" },
   ];
 }
@@ -39,7 +35,7 @@ export function runFields(products: Product[], lines: ProductionLine[]): Field[]
  * cooking → filling → sealing → retort → done. Setting a batch to "done" removes it
  * from here and it appears under "Batches, yield & quality" for its output and QC result.
  */
-export function InProductionSection({ products, lines }: { products: Product[]; lines: ProductionLine[] }) {
+export function InProductionSection({ products }: { products: Product[] }) {
   const { data, isLoading } = batches.useList();
   const create = batches.useCreate();
   const update = batches.useUpdate();
@@ -47,7 +43,7 @@ export function InProductionSection({ products, lines }: { products: Product[]; 
 
   const running = (data ?? []).filter(isInProduction);
   const productName = (id: string | null) => products.find((p) => p.id === id)?.name ?? "—";
-  const fields = runFields(products, lines);
+  const fields = runFields(products);
 
   const save = (payload: Record<string, unknown>, id?: string) =>
     id ? update.mutateAsync({ id, ...payload }) : create.mutateAsync(payload as never);
