@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Plus, Check } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
+import { DateRangePicker } from "@/components/app/date-range-picker";
+import { DEFAULT_RANGE, RANGE_PRESETS, formatRange, resolveRange, validateRangeSearch, type RangeKey } from "@/lib/date-range";
 import { KpiCard } from "@/components/app/kpi-card";
 import { SectionCard } from "@/components/app/section-card";
 import { EmptyState } from "@/components/app/empty-state";
@@ -25,6 +27,7 @@ export const Route = createFileRoute("/_authenticated/finance")({
     { property: "og:title", content: "Finance — Company OS" },
     { property: "og:description", content: "P&L, cash flow, receivables in one view." },
   ]}),
+  validateSearch: validateRangeSearch,
   component: Finance,
 });
 
@@ -56,7 +59,11 @@ const invoiceFields: Field[] = [
 ];
 
 function Finance() {
-  const snap = useBusinessSnapshot();
+  const navigate = Route.useNavigate();
+  const rangeKey = Route.useSearch().range ?? DEFAULT_RANGE;
+  const range = resolveRange(rangeKey);
+  const setRange = (k: RangeKey) => navigate({ search: k === DEFAULT_RANGE ? {} : { range: k }, replace: true });
+  const snap = useBusinessSnapshot({ range });
   const s = snap.data;
   const exp = expenses.useList();
   const inv = invoices.useList();
@@ -79,9 +86,10 @@ function Finance() {
     <div>
       <PageHeader
         title="Finance"
-        description="P&L, cash flow, receivables and payables — last 30 days."
+        description={`P&L and cash flow · ${RANGE_PRESETS[rangeKey].label} · ${formatRange(range)}`}
         actions={
           <>
+            <DateRangePicker value={rangeKey} onChange={setRange} />
             <StatementImport />
             <RecordDialog<Invoice>
               title="Invoice" fields={invoiceFields} onSave={saveInvoice}
@@ -118,7 +126,7 @@ function Finance() {
         <SectionCard title="Monthly P&L" description="Revenue vs expenses + ad spend, last 6 months" className="lg:col-span-2">
           {s ? <StackedRevenue data={s.monthlyPnL} /> : <Skeleton className="h-[280px] rounded-xl" />}
         </SectionCard>
-        <SectionCard title="Cash flow (30d)" description={s ? `Net ${currency(s.cashFlow)} · in solid, out dashed` : undefined}>
+        <SectionCard title="Cash flow" description={s ? `Net ${currency(s.cashFlow)} · in solid, out dashed` : undefined}>
           {s ? <RevenueArea data={s.cashTrend} /> : <Skeleton className="h-[280px] rounded-xl" />}
         </SectionCard>
       </div>

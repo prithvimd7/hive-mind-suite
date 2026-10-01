@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app/page-header";
+import { DateRangePicker } from "@/components/app/date-range-picker";
+import { DEFAULT_RANGE, RANGE_PRESETS, formatRange, resolveRange, validateRangeSearch, type RangeKey } from "@/lib/date-range";
 import { KpiCard } from "@/components/app/kpi-card";
 import { SectionCard } from "@/components/app/section-card";
 import { EmptyState } from "@/components/app/empty-state";
@@ -21,18 +23,23 @@ export const Route = createFileRoute("/_authenticated/marketing")({
     { property: "og:title", content: "Marketing — Company OS" },
     { property: "og:description", content: "Cross-platform ad performance in one view." },
   ]}),
+  validateSearch: validateRangeSearch,
   component: Marketing,
 });
 
 function Marketing() {
-  const { data, isLoading } = useMarketingData(30);
+  const navigate = Route.useNavigate();
+  const rangeKey = Route.useSearch().range ?? DEFAULT_RANGE;
+  const range = resolveRange(rangeKey);
+  const setRange = (k: RangeKey) => navigate({ search: k === DEFAULT_RANGE ? {} : { range: k }, replace: true });
+  const { data, isLoading } = useMarketingData(range);
 
   return (
     <div>
       <PageHeader
         title="Marketing"
-        description="Every rupee, every campaign, every platform."
-        actions={<AdSpendDialog />}
+        description={`${RANGE_PRESETS[rangeKey].label} · ${formatRange(range)}`}
+        actions={<><DateRangePicker value={rangeKey} onChange={setRange} /><AdSpendDialog /></>}
       />
 
       {isLoading ? (
@@ -42,7 +49,7 @@ function Marketing() {
       ) : !data?.hasData ? (
         <SectionCard title="No ad spend data yet">
           <EmptyState
-            title="No ad spend recorded in the last 30 days"
+            title={`No ad spend recorded in ${RANGE_PRESETS[rangeKey].label.toLowerCase()}`}
             description="Add an entry manually, or sync Meta, Google or Amazon Ads from Integrations."
             ctaLabel="Add ad spend"
             ctaTo="/integrations"

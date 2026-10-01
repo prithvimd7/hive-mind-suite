@@ -67,3 +67,7 @@ export function formatRange(r: DateRange): string {
   if (r.since === r.until) return fmt(r.since, true);
   return `${fmt(r.since, false)} – ${fmt(r.until, true)}`;
 }
+
+/** Shared route search validation: ?range=7d etc., ignoring anything unrecognised. */
+export const validateRangeSearch = (search: Record<string, unknown>): { range?: RangeKey } =>
+  RANGE_KEYS.includes(search.range as RangeKey) ? { range: search.range as RangeKey } : {};
