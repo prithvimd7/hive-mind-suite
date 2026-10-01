@@ -28,6 +28,7 @@ query Orders($cursor: String, $q: String!) {
       lineItems(first: 50) {
         nodes {
           title
+          variantTitle
           quantity
           sku
           discountedTotalSet { shopMoney { amount } }
@@ -46,7 +47,7 @@ type ShopifyOrdersResponse = {
         cancelledAt: string | null;
         test: boolean;
         currentTotalPriceSet?: { shopMoney?: { amount?: string; currencyCode?: string } };
-        lineItems?: { nodes: Array<{ title?: string; quantity?: number; sku?: string | null; discountedTotalSet?: { shopMoney?: { amount?: string } } }> };
+        lineItems?: { nodes: Array<{ title?: string; variantTitle?: string | null; quantity?: number; sku?: string | null; discountedTotalSet?: { shopMoney?: { amount?: string } } }> };
       }>;
     };
   };
@@ -89,9 +90,12 @@ serveSync("shopify", async (req, db) => {
       byDay.set(day, d);
 
       for (const li of o.lineItems?.nodes ?? []) {
+        // The pack size often lives in the variant ("Pack of 6"), not the product title.
+        const variant = li.variantTitle?.trim();
+        const name = li.title?.trim() || "Unnamed product";
         items.push({
           order_date: day,
-          product_name: li.title?.trim() || "Unnamed product",
+          product_name: variant && variant.toLowerCase() !== "default title" ? `${name} — ${variant}` : name,
           sku: li.sku || null,
           quantity: Number(li.quantity ?? 0),
           revenue: Number(li.discountedTotalSet?.shopMoney?.amount ?? 0),
