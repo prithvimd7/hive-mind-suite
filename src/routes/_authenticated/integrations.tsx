@@ -20,6 +20,7 @@ import {
 } from "@/lib/integrations.functions";
 import { triggerSync, type SyncKind } from "@/lib/sync.functions";
 import { useRole } from "@/hooks/use-role";
+import { parseAdsCsv, parseSalesCsv, type AdCsvRow, type SalesCsvRow } from "@/lib/csv-import";
 import { isoDaysAgo, localIso, today } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
@@ -255,8 +256,6 @@ function mostRecent(rows: { last_synced_at: string | null }[]) {
   return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-type SalesCsvRow = { order_date: string; channel?: string; revenue: number; orders: number; currency: string; external_id?: string };
-type AdCsvRow    = { spend_date: string; campaign?: string; spend: number; revenue: number; impressions: number; clicks: number; conversions: number };
 
 const STATUS: Record<string, { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" }> = {
   connected: { label: "Connected",  icon: CheckCircle2, variant: "default" },
@@ -282,10 +281,13 @@ function SourceCard({
 
   const handleFile = async (file: File) => {
     try {
+      if (/.(xlsx?|pdf)$/i.test(file.name)) {
+        return toast.error("Only CSV files can be uploaded. In Excel use File → Save As → CSV, then upload that.");
+      }
       const text = await file.text();
-      const rows = cfg.dataset === "sales" ? parseSalesCsv(text) : parseAdsCsv(text);
-      if (!rows.length) return toast.error("No rows found in CSV");
-      onCsv(rows);
+      const result = cfg.dataset === "sales" ? parseSalesCsv(text) : parseAdsCsv(text);
+      if (!result.rows.length) return toast.error(result.error ?? "No rows found in this CSV.");
+      onCsv(result.rows);
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -358,8 +360,8 @@ function SourceCard({
           />
           <div className="text-[10px] text-muted-foreground mt-1.5">
             {cfg.dataset === "sales"
-              ? "Columns: order_date, channel, revenue, orders, currency, external_id"
-              : "Columns: spend_date, campaign, spend, revenue, impressions, clicks, conversions"}
+              ? "Needs a date column and a revenue column. Orders, channel, currency and order id are used if present."
+              : "Needs a date column and a spend column. Campaign, revenue, impressions, clicks and conversions are used if present."}
           </div>
         </div>
       )}
@@ -369,45 +371,4 @@ function SourceCard({
       )}
     </div>
   );
-}
-
-function parseCsv(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const headers = splitLine(lines[0]).map((h) => h.trim().toLowerCase());
-  return lines.slice(1).map((line) => {
-    const cells = splitLine(line);
-    return Object.fromEntries(headers.map((h, i) => [h, (cells[i] ?? "").trim()]));
-  });
-}
-function splitLine(line: string) {
-  const out: string[] = []; let cur = ""; let q = false;
-  for (const c of line) {
-    if (c === '"') q = !q;
-    else if (c === "," && !q) { out.push(cur); cur = ""; }
-    else cur += c;
-  }
-  out.push(cur); return out;
-}
-function n(v: string | undefined, d = 0) { const x = Number((v ?? "").replace(/[,₹$]/g, "")); return Number.isFinite(x) ? x : d; }
-function parseSalesCsv(text: string): SalesCsvRow[] {
-  return parseCsv(text).filter((r) => r.order_date).map((r) => ({
-    order_date: r.order_date,
-    channel: r.channel || undefined,
-    revenue: n(r.revenue),
-    orders: n(r.orders, 1),
-    currency: (r.currency || "INR").toUpperCase(),
-    external_id: r.external_id || undefined,
-  }));
-}
-function parseAdsCsv(text: string): AdCsvRow[] {
-  return parseCsv(text).filter((r) => r.spend_date).map((r) => ({
-    spend_date: r.spend_date,
-    campaign: r.campaign || undefined,
-    spend: n(r.spend),
-    revenue: n(r.revenue),
-    impressions: n(r.impressions),
-    clicks: n(r.clicks),
-    conversions: n(r.conversions),
-  }));
 }
