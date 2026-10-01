@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "company-os", "runtimeExecutable": "node", "runtimeArgs": ["node_modules/vite/bin/vite.js", "dev", "--port", "8080"], "port": 8080 }
+  ]
+}

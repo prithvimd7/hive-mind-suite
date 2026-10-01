@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secondary lockfile: this project builds with bun (bun.lock). A committed
+# pnpm-lock.yaml drifts out of step with package.json and breaks the build.
+pnpm-lock.yaml
