@@ -442,6 +442,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_items: {
+        Row: {
+          channel: string
+          created_at: string
+          currency: string
+          id: string
+          import_ref: string | null
+          order_date: string
+          product_name: string
+          quantity: number
+          revenue: number
+          sku: string | null
+          source: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          currency?: string
+          id?: string
+          import_ref?: string | null
+          order_date: string
+          product_name: string
+          quantity?: number
+          revenue?: number
+          sku?: string | null
+          source: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          import_ref?: string | null
+          order_date?: string
+          product_name?: string
+          quantity?: number
+          revenue?: number
+          sku?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       sales_imports: {
         Row: {
           channel: string | null
