@@ -10,42 +10,48 @@ interface KpiCardProps {
   className?: string;
   /** Route to navigate to when the card is tapped/clicked (e.g. "/sales") */
   to?: string;
+  /** Primary KPIs are larger; secondary ones sit in a compact row underneath. */
+  size?: "primary" | "compact";
 }
 
-export function KpiCard({ label, value, delta, hint, className, to }: KpiCardProps) {
+export function KpiCard({ label, value, delta, hint, className, to, size = "primary" }: KpiCardProps) {
   const positive = (delta ?? 0) >= 0;
+  const compact = size === "compact";
 
   const inner = (
     <div
       className={cn(
-        "card-elevated p-5 animate-in-up transition-all hover:shadow-[var(--shadow-elevated)]",
-        to && "cursor-pointer hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99]",
+        "h-full bg-card border rounded-[var(--radius)] transition-colors",
+        compact ? "px-3.5 py-3" : "px-4 py-3.5",
+        to && "hover:border-foreground/20",
         className,
       )}
     >
-      <div className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{label}</div>
-      <div className="mt-2 flex items-baseline justify-between gap-2">
-        <div className="text-2xl md:text-[28px] font-semibold tracking-tight">{value}</div>
+      <div className={cn("font-medium text-muted-foreground", compact ? "text-[11px]" : "text-xs")}>{label}</div>
+      <div className="mt-1.5 flex items-baseline gap-2 flex-wrap">
+        <div className={cn("font-medium tracking-tight tabular", compact ? "text-lg" : "text-[26px] leading-none")}>
+          {value}
+        </div>
         {typeof delta === "number" && (
-          <div
+          <span
             className={cn(
-              "inline-flex items-center gap-0.5 text-xs font-medium rounded-full px-2 py-0.5",
-              positive ? "text-[color:var(--success)] bg-[color:var(--success)]/10" : "text-destructive bg-destructive/10",
+              "inline-flex items-center gap-0.5 text-[11px] font-medium tabular",
+              positive ? "text-[color:var(--success)]" : "text-destructive",
             )}
           >
             {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
             {Math.abs(delta).toFixed(1)}%
-          </div>
+          </span>
         )}
       </div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+      {hint && !compact && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
     </div>
   );
 
   if (!to) return inner;
 
   return (
-    <Link to={to} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-[var(--radius,0.75rem)]">
+    <Link to={to} className="block rounded-[var(--radius)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       {inner}
     </Link>
   );

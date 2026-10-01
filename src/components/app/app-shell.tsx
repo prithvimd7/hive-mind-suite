@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   LayoutDashboard, TrendingUp, Megaphone, Factory, Package, Wallet,
   Users, UserSquare2, Sparkles, Search, Bell, Sun, Moon, Menu, Command as CmdIcon, Plug,
-  Plus, LogOut, Download, UserPlus, AlertTriangle,
+  Plus, LogOut, Download, UserPlus, AlertTriangle, Monitor,
 } from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
@@ -18,6 +18,7 @@ import { useBusinessSnapshot } from "@/hooks/use-business-snapshot";
 import { exportSalesCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
 import { useRole, type AppRole } from "@/hooks/use-role";
+import { useTheme, type Theme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -104,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 function Shell({ children }: { children: ReactNode }) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const { open: aiOpen, setOpen: setAiOpen } = useAdvisorChat();
-  const [dark, setDark] = useState(false);
+  const { theme, setTheme, isDark } = useTheme();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { role, email, name, avatar } = useRole();
@@ -122,10 +123,6 @@ function Shell({ children }: { children: ReactNode }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [aiOpen, setAiOpen]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-  }, [dark]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -172,9 +169,26 @@ function Shell({ children }: { children: ReactNode }) {
             </button>
 
             <div className="ml-auto flex items-center gap-1">
-              <Button variant="ghost" size="icon" onClick={() => setDark((v) => !v)} aria-label="Toggle theme">
-                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Theme">
+                    {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36">
+                  {([
+                    { value: "light", label: "Light", icon: Sun },
+                    { value: "dark", label: "Dark", icon: Moon },
+                    { value: "system", label: "System", icon: Monitor },
+                  ] as { value: Theme; label: string; icon: typeof Sun }[]).map((o) => (
+                    <DropdownMenuItem key={o.value} onSelect={() => setTheme(o.value)} className="gap-2 text-sm">
+                      <o.icon className="h-3.5 w-3.5" />
+                      {o.label}
+                      {theme === o.value && <span className="ml-auto text-[10px] text-muted-foreground">on</span>}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
