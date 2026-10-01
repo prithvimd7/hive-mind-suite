@@ -172,8 +172,8 @@ export type Database = {
           due_date: string | null
           expense_date: string
           gst_amount: number
-          import_ref: string | null
           id: string
+          import_ref: string | null
           is_cogs: boolean
           notes: string | null
           status: string
@@ -186,8 +186,8 @@ export type Database = {
           due_date?: string | null
           expense_date?: string
           gst_amount?: number
-          import_ref?: string | null
           id?: string
+          import_ref?: string | null
           is_cogs?: boolean
           notes?: string | null
           status?: string
@@ -200,8 +200,8 @@ export type Database = {
           due_date?: string | null
           expense_date?: string
           gst_amount?: number
-          import_ref?: string | null
           id?: string
+          import_ref?: string | null
           is_cogs?: boolean
           notes?: string | null
           status?: string
@@ -442,6 +442,45 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_imports: {
+        Row: {
+          channel: string | null
+          created_at: string
+          currency: string
+          external_id: string | null
+          id: string
+          order_date: string
+          orders: number
+          raw: Json
+          revenue: number
+          source: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          currency?: string
+          external_id?: string | null
+          id?: string
+          order_date: string
+          orders?: number
+          raw?: Json
+          revenue?: number
+          source: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          currency?: string
+          external_id?: string | null
+          id?: string
+          order_date?: string
+          orders?: number
+          raw?: Json
+          revenue?: number
+          source?: string
+        }
+        Relationships: []
+      }
       sales_items: {
         Row: {
           channel: string
@@ -480,45 +519,6 @@ export type Database = {
           quantity?: number
           revenue?: number
           sku?: string | null
-          source?: string
-        }
-        Relationships: []
-      }
-      sales_imports: {
-        Row: {
-          channel: string | null
-          created_at: string
-          currency: string
-          external_id: string | null
-          id: string
-          order_date: string
-          orders: number
-          raw: Json
-          revenue: number
-          source: string
-        }
-        Insert: {
-          channel?: string | null
-          created_at?: string
-          currency?: string
-          external_id?: string | null
-          id?: string
-          order_date: string
-          orders?: number
-          raw?: Json
-          revenue?: number
-          source: string
-        }
-        Update: {
-          channel?: string | null
-          created_at?: string
-          currency?: string
-          external_id?: string | null
-          id?: string
-          order_date?: string
-          orders?: number
-          raw?: Json
-          revenue?: number
           source?: string
         }
         Relationships: []
