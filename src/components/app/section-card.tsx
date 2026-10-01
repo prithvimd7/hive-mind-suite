@@ -15,15 +15,15 @@ export function SectionCard({
   className?: string;
 }) {
   return (
-    <section className={cn("card-elevated p-5 md:p-6 animate-in-up", className)}>
-      <header className="flex items-start justify-between gap-3 mb-4">
-        <div>
-          <h3 className="text-base font-semibold tracking-tight">{title}</h3>
-          {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+    <section className={cn("bg-card border rounded-[var(--radius)]", className)}>
+      <header className="flex items-start justify-between gap-3 px-4 py-3 border-b">
+        <div className="min-w-0">
+          <h3 className="text-[13px] font-medium tracking-tight">{title}</h3>
+          {description && <p className="text-[11.5px] text-muted-foreground mt-0.5">{description}</p>}
         </div>
         {action}
       </header>
-      {children}
+      <div className="p-4">{children}</div>
     </section>
   );
 }

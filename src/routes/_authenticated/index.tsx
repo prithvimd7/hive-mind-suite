@@ -14,6 +14,7 @@ import { Download, AlertTriangle, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DateRangePicker } from "@/components/app/date-range-picker";
+import { DashboardHeadline } from "@/components/app/dashboard-headline";
 import { DEFAULT_RANGE, RANGE_KEYS, RANGE_PRESETS, formatRange, resolveRange, type RangeKey } from "@/lib/date-range";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -43,42 +44,56 @@ function Executive() {
 
   return (
     <div>
-      <PageHeader
-        title="Executive Dashboard"
-        description={`${RANGE_PRESETS[rangeKey].label} (${formatRange(range)}) across sales, marketing, production, inventory and finance.`}
-        actions={
-          <>
-            <DateRangePicker value={rangeKey} onChange={setRange} />
-            <Button
-              size="sm"
-              className="gap-1.5"
-              onClick={() => exportSalesCsv(range).catch((e) => toast.error(e.message))}
-            >
-              <Download className="h-3.5 w-3.5" />Export sales
-            </Button>
-          </>
-        }
-      />
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <DashboardHeadline snapshot={s} rangeKey={rangeKey} loading={loading} />
+        <div className="flex items-center gap-2 shrink-0">
+          <DateRangePicker value={rangeKey} onChange={setRange} />
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => exportSalesCsv(range).catch((e) => toast.error(e.message))}
+          >
+            <Download className="h-3.5 w-3.5" />Export
+          </Button>
+        </div>
+      </div>
 
-      <div className={cn("grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 transition-opacity", (snap.isPlaceholderData || snap.isFetching) && !loading && "opacity-60")}>
-        {loading || !s ? (
-          Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-2xl" />)
-        ) : (
-          <>
-            <KpiCard label={`Revenue (${short})`} value={currency(s.revenue)} delta={delta(s.revenue, s.prevRevenue)} to="/sales" hint={vsPrev} />
-            <KpiCard label={`Orders (${short})`}  value={compact(s.orders)} delta={delta(s.orders, s.prevOrders)} to="/sales" hint={vsPrev} />
-            <KpiCard label="Avg Order Value" value={currency(Math.round(s.orders ? s.revenue / s.orders : 0))} to="/sales" />
-            <KpiCard label="Net Profit"      value={currency(s.netProfit)} to="/finance" hint="Revenue − expenses − ad spend" />
-            <KpiCard label="Gross Margin"    value={pct(s.grossMargin)} to="/finance" hint={s.cogs ? "After COGS expenses" : "Log COGS expenses to refine"} />
-            <KpiCard label="Net Margin"      value={pct(s.netMargin)} to="/finance" />
-            <KpiCard label={`Cash Flow (${short})`} value={currency(s.cashFlow)} to="/finance" hint="Sales − paid bills − ads" />
-            <KpiCard label={`Ad Spend (${short})`}  value={currency(s.adSpend)} delta={delta(s.adSpend, s.prevAdSpend)} to="/marketing" hint={vsPrev} />
-            <KpiCard label="Inventory Value" value={currency(s.inventoryValue)} to="/inventory" hint="Stock × unit cost, as of now" />
-            <KpiCard label={`Units Produced (${short})`} value={compact(s.unitsProduced)} delta={delta(s.unitsProduced, s.prevUnitsProduced)} to="/production" hint={vsPrev} />
-            <KpiCard label="Receivables"     value={currency(s.receivables)} to="/finance" hint="Unpaid invoices, as of now" />
-            <KpiCard label="Payables"        value={currency(s.payables)} to="/finance" hint="Unpaid bills, as of now" />
-          </>
-        )}
+      <div className="text-[11px] text-muted-foreground mb-2.5">
+        {RANGE_PRESETS[rangeKey].label} · {formatRange(range)}
+      </div>
+
+      <div className={cn("transition-opacity", (snap.isPlaceholderData || snap.isFetching) && !loading && "opacity-60")}>
+        {/* Four numbers that answer "how are we doing"; the rest sit one line down. */}
+        <div className="grid gap-2.5 grid-cols-2 lg:grid-cols-4">
+          {loading || !s ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[86px] rounded-[var(--radius)]" />)
+          ) : (
+            <>
+              <KpiCard label={`Revenue (${short})`} value={currency(s.revenue)} delta={delta(s.revenue, s.prevRevenue)} to="/sales" hint={vsPrev} />
+              <KpiCard label="Net profit" value={currency(s.netProfit)} to="/finance" hint="Revenue − expenses − ad spend" />
+              <KpiCard label="Net margin" value={pct(s.netMargin)} to="/finance" hint={s.cogs ? `Gross ${pct(s.grossMargin)}` : "Log COGS to refine"} />
+              <KpiCard label={`Cash flow (${short})`} value={currency(s.cashFlow)} to="/finance" hint="Sales − paid bills − ads" />
+            </>
+          )}
+        </div>
+
+        <div className="mt-2.5 grid gap-2.5 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
+          {loading || !s ? (
+            Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[62px] rounded-[var(--radius)]" />)
+          ) : (
+            <>
+              <KpiCard size="compact" label="Orders" value={compact(s.orders)} delta={delta(s.orders, s.prevOrders)} to="/sales" />
+              <KpiCard size="compact" label="AOV" value={currency(Math.round(s.orders ? s.revenue / s.orders : 0))} to="/sales" />
+              <KpiCard size="compact" label="Ad spend" value={currency(s.adSpend)} delta={delta(s.adSpend, s.prevAdSpend)} to="/marketing" />
+              <KpiCard size="compact" label="Units made" value={compact(s.unitsProduced)} delta={delta(s.unitsProduced, s.prevUnitsProduced)} to="/production" />
+              <KpiCard size="compact" label="Stock value" value={currency(s.inventoryValue)} to="/inventory" />
+              <KpiCard size="compact" label="Receivables" value={currency(s.receivables)} to="/finance" />
+              <KpiCard size="compact" label="Payables" value={currency(s.payables)} to="/finance" />
+              <KpiCard size="compact" label="Gross margin" value={pct(s.grossMargin)} to="/finance" />
+            </>
+          )}
+        </div>
       </div>
 
       {s && s.alerts.length > 0 && (
