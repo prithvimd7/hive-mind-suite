@@ -62,6 +62,43 @@ export async function replaceSales(db: SupabaseClient, source: string, channel: 
   return days.length;
 }
 
+export type ItemRow = { order_date: string; product_name: string; sku?: string | null; quantity: number; revenue: number };
+
+/**
+ * Replaces this source's product lines for the range, mirroring replaceSales so the daily
+ * totals and the per-product detail stay consistent when a sync is re-run.
+ */
+export async function replaceItems(
+  db: SupabaseClient, source: string, channel: string, since: string, until: string, items: ItemRow[],
+) {
+  const del = await db.from("sales_items").delete().eq("source", source).gte("order_date", since).lte("order_date", until);
+  if (del.error) throw new Error(`Clearing old ${source} items failed: ${del.error.message}`);
+  if (!items.length) return 0;
+
+  // One row per day and product.
+  const merged = new Map<string, ItemRow>();
+  for (const i of items) {
+    const key = `${i.order_date}|${i.product_name}`;
+    const cur = merged.get(key);
+    if (!cur) { merged.set(key, { ...i }); continue; }
+    cur.quantity += i.quantity;
+    cur.revenue += i.revenue;
+  }
+
+  const rows = [...merged.values()].map((i) => ({
+    source, channel, order_date: i.order_date, product_name: i.product_name, sku: i.sku ?? null,
+    quantity: Math.round(i.quantity * 100) / 100,
+    revenue: Math.round(i.revenue * 100) / 100,
+    currency: "INR",
+    import_ref: `${source}:${i.order_date}:${i.product_name}`,
+  }));
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await db.from("sales_items").insert(rows.slice(i, i + 500));
+    if (error) throw new Error(`Saving ${source} items failed: ${error.message}`);
+  }
+  return rows.length;
+}
+
 export type AdRow = {
   campaign: string; spend_date: string; spend: number; revenue: number;
   impressions: number; clicks: number; conversions: number; raw?: unknown;

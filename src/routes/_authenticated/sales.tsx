@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { BarsChart, RevenueArea } from "@/components/app/charts";
 import { currency, compact, shortDate } from "@/lib/format";
 import { useSalesData, type SalesDayRow } from "@/hooks/use-sales-data";
+import { byProduct, useSalesItems } from "@/hooks/use-sales-items";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ function Sales() {
   const { channel, month_of: month } = search;
   const { range, label: rangeLabel, short } = resolveSelection(search);
   const { data, isLoading } = useSalesData(range);
+  const { data: itemRows } = useSalesItems(range);
 
   const go = (next: Partial<SalesSearch>) =>
     navigate({ search: { ...search, ...next } as SalesSearch, replace: true });
@@ -86,6 +88,16 @@ function Sales() {
   );
   const days = useMemo(() => groupBy(scoped, (r) => r.date), [scoped]);
   const channels = useMemo(() => groupBy(rows, (r) => r.channel).sort((a, b) => b.revenue - a.revenue), [rows]);
+
+  // Items sold, narrowed to whichever level is open (all channels / one channel / one month).
+  const products = useMemo(() => {
+    let r = itemRows ?? [];
+    if (channel) r = r.filter((x) => x.channel === channel);
+    if (month) r = r.filter((x) => x.date.slice(0, 7) === month);
+    return byProduct(r);
+  }, [itemRows, channel, month]);
+  const unitsSold = products.reduce((a, p) => a + p.quantity, 0);
+  const productRevenue = products.reduce((a, p) => a + p.revenue, 0);
 
   const heading = month ? `${channel} · ${monthLabel(month)}` : channel ?? "All channels";
 
@@ -187,6 +199,47 @@ function Sales() {
                 data={(channel ? groupBy(scoped, (r) => r.date) : groupBy(rows, (r) => r.date))
                   .map((d) => ({ label: d.key.slice(5), value: d.revenue }))}
               />
+            </SectionCard>
+          </div>
+
+          <div className="mt-3">
+            <SectionCard
+              title="Items sold"
+              description={
+                products.length
+                  ? `${unitsSold.toLocaleString("en-IN")} units · ${products.length} product${products.length === 1 ? "" : "s"}${channel ? ` · ${heading}` : ""}`
+                  : undefined
+              }
+            >
+              {products.length === 0 ? (
+                <EmptyState
+                  title="No product detail for this period"
+                  description="Shopify and Amazon report items when synced. Manual entries, and CSVs without a product column, carry totals only."
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Units</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Share</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((p) => (
+                      <TableRow key={p.product}>
+                        <TableCell className="font-medium">{p.product}</TableCell>
+                        <TableCell className="text-right">{p.quantity.toLocaleString("en-IN")}</TableCell>
+                        <TableCell className="text-right">{currency(p.revenue)}</TableCell>
+                        <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
+                          {productRevenue > 0 ? `${Math.round((p.revenue / productRevenue) * 100)}%` : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </SectionCard>
           </div>
 

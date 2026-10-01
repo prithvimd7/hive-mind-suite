@@ -14,7 +14,7 @@
 //   Scopes: read_orders (plus read_all_orders to sync history older than 60 days)
 //   SHOPIFY_API_VERSION    - optional, defaults below
 
-import { istDate, parseRange, replaceSales, requireEnv, serveSync, markSynced, HttpError, type DailySales } from "../_shared/sync.ts";
+import { istDate, parseRange, replaceSales, replaceItems, requireEnv, serveSync, markSynced, HttpError, type DailySales, type ItemRow } from "../_shared/sync.ts";
 
 const DEFAULT_API_VERSION = "2026-07";
 
@@ -22,7 +22,18 @@ const QUERY = `
 query Orders($cursor: String, $q: String!) {
   orders(first: 250, after: $cursor, query: $q, sortKey: CREATED_AT) {
     pageInfo { hasNextPage endCursor }
-    nodes { createdAt cancelledAt test currentTotalPriceSet { shopMoney { amount currencyCode } } }
+    nodes {
+      createdAt cancelledAt test
+      currentTotalPriceSet { shopMoney { amount currencyCode } }
+      lineItems(first: 50) {
+        nodes {
+          title
+          quantity
+          sku
+          discountedTotalSet { shopMoney { amount } }
+        }
+      }
+    }
   }
 }`;
 
@@ -35,6 +46,7 @@ type ShopifyOrdersResponse = {
         cancelledAt: string | null;
         test: boolean;
         currentTotalPriceSet?: { shopMoney?: { amount?: string; currencyCode?: string } };
+        lineItems?: { nodes: Array<{ title?: string; quantity?: number; sku?: string | null; discountedTotalSet?: { shopMoney?: { amount?: string } } }> };
       }>;
     };
   };
@@ -51,6 +63,7 @@ serveSync("shopify", async (req, db) => {
   // Widen by a day on each side in UTC, then filter by India date, so IST day boundaries are exact.
   const q = `created_at:>=${shift(since, -1)} created_at:<=${shift(until, 1)}`;
   const byDay = new Map<string, DailySales>();
+  const items: ItemRow[] = [];
   let cursor: string | null = null;
 
   do {
@@ -74,14 +87,30 @@ serveSync("shopify", async (req, db) => {
       d.revenue += Number(o.currentTotalPriceSet?.shopMoney?.amount ?? 0);
       d.orders += 1;
       byDay.set(day, d);
+
+      for (const li of o.lineItems?.nodes ?? []) {
+        items.push({
+          order_date: day,
+          product_name: li.title?.trim() || "Unnamed product",
+          sku: li.sku || null,
+          quantity: Number(li.quantity ?? 0),
+          revenue: Number(li.discountedTotalSet?.shopMoney?.amount ?? 0),
+        });
+      }
     }
     cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
   } while (cursor);
 
   const days = [...byDay.values()];
   await replaceSales(db, "shopify", "Shopify", since, until, days);
+  const products = await replaceItems(db, "shopify", "Shopify", since, until, items);
   await markSynced(db, "shopify");
-  return { rows_synced: days.length, orders: days.reduce((a, d) => a + d.orders, 0), since, until };
+  return {
+    rows_synced: days.length,
+    orders: days.reduce((a, d) => a + d.orders, 0),
+    product_lines: products,
+    since, until,
+  };
 });
 
 function shift(date: string, days: number) {
