@@ -11,37 +11,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { batches, PRODUCTION_STAGES, type Batch } from "@/hooks/use-modules";
 import type { Product } from "@/hooks/use-products";
-import type { ProductionLine } from "@/hooks/use-production-lines";
 import { isoDaysAgo, shortDate, today } from "@/lib/format";
 
-export function useBatchKpis(lines: ProductionLine[]) {
+export function useBatchKpis() {
   const { data } = batches.useList();
   return useMemo(() => {
     // Only finished batches have real output numbers; in-progress runs are counted separately.
     const rows = (data ?? []).filter((b) => b.stage === "done");
     const inProduction = (data ?? []).length - rows.length;
-    const t = today(), d7 = isoDaysAgo(6), d30 = isoDaysAgo(30);
+    const t = today(), d30 = isoDaysAgo(30);
     const r30 = rows.filter((b) => b.batch_date >= d30);
-    const r7 = rows.filter((b) => b.batch_date >= d7);
     const units30 = r30.reduce((a, b) => a + b.units_produced, 0);
     const rejects30 = r30.reduce((a, b) => a + b.rejects, 0);
-    const capacityPerDay = lines.filter((l) => l.status === "active").reduce((a, l) => a + (l.capacity_per_day ?? 0), 0);
-    const units7 = r7.reduce((a, b) => a + b.units_produced, 0);
     const qcDone = r30.filter((b) => b.qc_status !== "pending");
     return {
       inProduction,
       today: rows.filter((b) => b.batch_date === t).reduce((a, b) => a + b.units_produced, 0),
       units30,
       yieldPct: units30 + rejects30 > 0 ? (units30 / (units30 + rejects30)) * 100 : null,
-      utilization: capacityPerDay > 0 ? (units7 / (capacityPerDay * 7)) * 100 : null,
       downtime30: r30.reduce((a, b) => a + b.downtime_minutes, 0),
       qcPass: qcDone.length ? (qcDone.filter((b) => b.qc_status === "passed").length / qcDone.length) * 100 : null,
     };
-  }, [data, lines]);
+  }, [data]);
 }
 
 /** Finished batches only — runs still on the floor live in the "In production" board. */
-export function BatchesSection({ products, lines }: { products: Product[]; lines: ProductionLine[] }) {
+export function BatchesSection({ products }: { products: Product[] }) {
   const { data: allBatches, isLoading } = batches.useList();
   const data = (allBatches ?? []).filter((b) => b.stage === "done");
   const create = batches.useCreate();
@@ -49,13 +44,11 @@ export function BatchesSection({ products, lines }: { products: Product[]; lines
   const remove = batches.useDelete();
 
   const productName = (id: string | null) => products.find((p) => p.id === id)?.name ?? "—";
-  const lineName = (id: string | null) => lines.find((l) => l.id === id)?.name ?? "—";
 
   const fields: Field[] = [
     { name: "batch_code", label: "Batch code", required: true },
     { name: "batch_date", label: "Date", type: "date", required: true },
     { name: "product_id", label: "Product", type: "select", options: products.map((p) => ({ value: p.id, label: p.name })) },
-    { name: "line_id", label: "Line", type: "select", options: lines.map((l) => ({ value: l.id, label: l.name })) },
     { name: "units_planned", label: "Units planned", type: "number", min: 0, required: true },
     { name: "units_produced", label: "Good units produced", type: "number", min: 0, required: true },
     { name: "rejects", label: "Rejects", type: "number", min: 0, required: true },
@@ -68,7 +61,7 @@ export function BatchesSection({ products, lines }: { products: Product[]; lines
     { name: "notes", label: "Notes", type: "textarea" },
   ];
 
-  const defaults = { batch_date: today(), units_planned: 0, units_produced: 0, rejects: 0, downtime_minutes: 0, qc_status: "pending", stage: "done", line_id: lines[0]?.id };
+  const defaults = { batch_date: today(), units_planned: 0, units_produced: 0, rejects: 0, downtime_minutes: 0, qc_status: "pending", stage: "done" };
   const save = (payload: Record<string, unknown>, id?: string) =>
     id ? update.mutateAsync({ id, ...payload }) : create.mutateAsync(payload as never);
 
@@ -110,7 +103,6 @@ export function BatchesSection({ products, lines }: { products: Product[]; lines
                   <TableHead>Date</TableHead>
                   <TableHead>Batch</TableHead>
                   <TableHead>Product</TableHead>
-                  <TableHead className="hidden md:table-cell">Line</TableHead>
                   <TableHead className="text-right">Units</TableHead>
                   <TableHead className="text-right hidden sm:table-cell">Yield</TableHead>
                   <TableHead className="text-right hidden md:table-cell">Protein</TableHead>
@@ -126,7 +118,6 @@ export function BatchesSection({ products, lines }: { products: Product[]; lines
                       <TableCell className="whitespace-nowrap">{shortDate(b.batch_date)}</TableCell>
                       <TableCell className="font-mono text-xs">{b.batch_code}</TableCell>
                       <TableCell>{productName(b.product_id)}</TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">{lineName(b.line_id)}</TableCell>
                       <TableCell className="text-right">
                         {b.units_produced.toLocaleString("en-IN")}
                         {b.units_planned > 0 && <span className="text-muted-foreground text-xs"> / {b.units_planned}</span>}
