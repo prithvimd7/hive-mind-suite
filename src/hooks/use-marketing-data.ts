@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { DateRange } from "@/lib/date-range";
+import { isoDaysAgo, today } from "@/lib/format";
 
 export const PLATFORM_LABEL: Record<string, string> = {
   meta_ads: "Meta Ads", google_ads: "Google Ads", amazon_ads: "Amazon Ads", other: "Other",
@@ -46,18 +48,17 @@ const EMPTY: MarketingData = {
 };
 
 /** Real ad spend data from Supabase, aggregated for the last `days` days. Returns hasData=false if no rows exist yet. */
-export function useMarketingData(days = 30) {
+export function useMarketingData(period: number | DateRange = 30) {
+  const range = typeof period === "number" ? { since: isoDaysAgo(period - 1), until: today() } : period;
   return useQuery({
-    queryKey: ["ad_spend_imports", days],
+    queryKey: ["ad_spend_imports", range.since, range.until],
+    placeholderData: keepPreviousData,
     queryFn: async (): Promise<MarketingData> => {
-      const since = new Date();
-      since.setDate(since.getDate() - days);
-      const sinceStr = since.toISOString().slice(0, 10);
-
       const { data, error } = await supabase
         .from("ad_spend_imports")
         .select("platform, campaign, spend, revenue, impressions, clicks, conversions, spend_date")
-        .gte("spend_date", sinceStr)
+        .gte("spend_date", range.since)
+        .lte("spend_date", range.until)
         .order("spend_date", { ascending: true });
 
       if (error) throw error;
