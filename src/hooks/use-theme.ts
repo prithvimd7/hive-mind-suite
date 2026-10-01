@@ -17,15 +17,18 @@ function apply(theme: Theme) {
  * Runs client-side only; the app's authenticated routes are client-rendered.
  */
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [isDark, setIsDark] = useState(false);
+  const [state, setState] = useState<{ theme: Theme; isDark: boolean }>({
+    theme: "system",
+    isDark: false,
+  });
+  const { theme, isDark } = state;
 
   useEffect(() => {
     const stored = localStorage.getItem(KEY) as Theme | null;
     const initial: Theme = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
-    setThemeState(initial);
+    const nextIsDark = initial === "dark" || (initial === "system" && systemPrefersDark());
+    setState({ theme: initial, isDark: nextIsDark });
     apply(initial);
-    setIsDark(initial === "dark" || (initial === "system" && systemPrefersDark()));
   }, []);
 
   useEffect(() => {
@@ -33,17 +36,19 @@ export function useTheme() {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
       apply("system");
-      setIsDark(mq.matches);
+      setState((current) => ({ ...current, isDark: mq.matches }));
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
     localStorage.setItem(KEY, next);
     apply(next);
-    setIsDark(next === "dark" || (next === "system" && systemPrefersDark()));
+    setState({
+      theme: next,
+      isDark: next === "dark" || (next === "system" && systemPrefersDark()),
+    });
   }, []);
 
   return { theme, setTheme, isDark };
