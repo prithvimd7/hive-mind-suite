@@ -12,7 +12,11 @@ import { EmptyState } from "@/components/app/empty-state";
 import { BarsChart, RevenueArea } from "@/components/app/charts";
 import { currency, compact, shortDate } from "@/lib/format";
 import { useSalesData, type SalesDayRow } from "@/hooks/use-sales-data";
-import { byProduct, useSalesItems } from "@/hooks/use-sales-items";
+import { useSalesItems } from "@/hooks/use-sales-items";
+import { groupProducts } from "@/lib/product-normalise";
+import { useProducts } from "@/hooks/use-products";
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -68,6 +72,8 @@ function Sales() {
   const { range, label: rangeLabel, short } = resolveSelection(search);
   const { data, isLoading } = useSalesData(range);
   const { data: itemRows } = useSalesItems(range);
+  const { data: productList } = useProducts();
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const go = (next: Partial<SalesSearch>) =>
     navigate({ search: { ...search, ...next } as SalesSearch, replace: true });
@@ -90,13 +96,15 @@ function Sales() {
   const channels = useMemo(() => groupBy(rows, (r) => r.channel).sort((a, b) => b.revenue - a.revenue), [rows]);
 
   // Items sold, narrowed to whichever level is open (all channels / one channel / one month).
+  // Listing titles differ per channel, so they are folded into one product and pack sizes
+  // turned into real units.
   const products = useMemo(() => {
     let r = itemRows ?? [];
     if (channel) r = r.filter((x) => x.channel === channel);
     if (month) r = r.filter((x) => x.date.slice(0, 7) === month);
-    return byProduct(r);
-  }, [itemRows, channel, month]);
-  const unitsSold = products.reduce((a, p) => a + p.quantity, 0);
+    return groupProducts(r, (productList ?? []).map((p) => p.name));
+  }, [itemRows, channel, month, productList]);
+  const unitsSold = products.reduce((a, p) => a + p.units, 0);
   const productRevenue = products.reduce((a, p) => a + p.revenue, 0);
 
   const heading = month ? `${channel} · ${monthLabel(month)}` : channel ?? "All channels";
@@ -221,22 +229,53 @@ function Sales() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Packs</TableHead>
                       <TableHead className="text-right">Units</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
                       <TableHead className="text-right hidden sm:table-cell">Share</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {products.map((p) => (
-                      <TableRow key={p.product}>
-                        <TableCell className="font-medium">{p.product}</TableCell>
-                        <TableCell className="text-right">{p.quantity.toLocaleString("en-IN")}</TableCell>
-                        <TableCell className="text-right">{currency(p.revenue)}</TableCell>
-                        <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
-                          {productRevenue > 0 ? `${Math.round((p.revenue / productRevenue) * 100)}%` : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {products.map((p) => {
+                      const open = expanded === p.product;
+                      return [
+                        <TableRow
+                          key={p.product}
+                          className="cursor-pointer"
+                          onClick={() => setExpanded(open ? null : p.product)}
+                        >
+                          <TableCell className="font-medium">
+                            <span className="inline-flex items-center gap-1.5">
+                              <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition", open && "rotate-180")} />
+                              {p.product}
+                              <span className="text-[11px] text-muted-foreground">
+                                {p.variants.length} listing{p.variants.length === 1 ? "" : "s"}
+                              </span>
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">{p.packs.toLocaleString("en-IN")}</TableCell>
+                          <TableCell className="text-right font-medium">{p.units.toLocaleString("en-IN")}</TableCell>
+                          <TableCell className="text-right">{currency(p.revenue)}</TableCell>
+                          <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
+                            {productRevenue > 0 ? `${Math.round((p.revenue / productRevenue) * 100)}%` : "—"}
+                          </TableCell>
+                        </TableRow>,
+                        ...(open
+                          ? p.variants.map((v) => (
+                              <TableRow key={`${p.product}|${v.title}`} className="bg-muted/30">
+                                <TableCell className="pl-8 text-xs text-muted-foreground">
+                                  <span className="line-clamp-2">{v.title}</span>
+                                  <span className="text-[11px]">pack of {v.packSize}</span>
+                                </TableCell>
+                                <TableCell className="text-right text-xs">{v.packs.toLocaleString("en-IN")}</TableCell>
+                                <TableCell className="text-right text-xs">{v.units.toLocaleString("en-IN")}</TableCell>
+                                <TableCell className="text-right text-xs">{currency(v.revenue)}</TableCell>
+                                <TableCell className="hidden sm:table-cell" />
+                              </TableRow>
+                            ))
+                          : []),
+                      ];
+                    })}
                   </TableBody>
                 </Table>
               )}

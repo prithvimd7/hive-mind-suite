@@ -18,7 +18,8 @@ import { useProducts } from "@/hooks/use-products";
 import { currency, isoDaysAgo, shortDate } from "@/lib/format";
 import { DateRangePicker } from "@/components/app/date-range-picker";
 import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } from "@/lib/date-range";
-import { byProduct, useSalesItems } from "@/hooks/use-sales-items";
+import { useSalesItems } from "@/hooks/use-sales-items";
+import { groupProducts } from "@/lib/product-normalise";
 import { batches } from "@/hooks/use-modules";
 import { downloadCsv } from "@/lib/csv-export";
 
@@ -70,7 +71,8 @@ function Inventory() {
 
   // What moved during the chosen period, per product name.
   const movement = useMemo(() => {
-    const sold = byProduct(soldRows ?? []);
+    // Listing titles are folded into products, and pack sizes counted as real units.
+    const sold = groupProducts(soldRows ?? [], (products ?? []).map((p) => p.name));
     const made = new Map<string, number>();
     for (const b of batchRows ?? []) {
       if (b.stage !== "done") continue;
@@ -86,7 +88,7 @@ function Inventory() {
         const item = stockOf(name);
         return {
           name,
-          soldUnits: s?.quantity ?? 0,
+          soldUnits: s?.units ?? 0,
           soldRevenue: s?.revenue ?? 0,
           made: made.get(name) ?? 0,
           stock: item ? Number(item.stock) : null,
