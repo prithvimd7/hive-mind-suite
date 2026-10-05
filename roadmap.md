@@ -7,3 +7,6 @@
 - [x] Apply `20260921090000_daily_sync_schedule.sql` exactly as written.
 - [x] Apply `20260922100000_cron_secret_from_vault.sql` exactly as written.
 - [x] Verify the scheduler extensions, Vault-based helper signatures, and scheduled-job state.
+
+- [ ] Add OAuth-protected Agent Integrations (MCP) for Company OS.
+- [ ] Verify MCP catalog, OAuth consent return flow, and preview health.
