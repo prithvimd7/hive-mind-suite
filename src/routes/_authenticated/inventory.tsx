@@ -21,7 +21,7 @@ import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } 
 import { useSalesItems } from "@/hooks/use-sales-items";
 import { groupProducts } from "@/lib/product-normalise";
 import { batches } from "@/hooks/use-modules";
-import { useStockMovements, stockAsOf } from "@/hooks/use-stock-movements";
+import { useStockMovements, useDeductSalesFrom, stockAsOf, type StockMovementKind } from "@/hooks/use-stock-movements";
 import { downloadCsv } from "@/lib/csv-export";
 
 export const Route = createFileRoute("/_authenticated/inventory")({
@@ -36,6 +36,7 @@ export const Route = createFileRoute("/_authenticated/inventory")({
 });
 
 const TYPE_LABEL: Record<string, string> = { raw: "Raw material", finished: "Finished good", packaging: "Packaging" };
+const MOVEMENT_LABEL: Record<StockMovementKind, string> = { production: "Production", sale: "Sale", adjustment: "Adjustment" };
 
 function Inventory() {
   const navigate = Route.useNavigate();
@@ -45,6 +46,7 @@ function Inventory() {
   const { data: soldRows } = useSalesItems(range);
   const { data: batchRows } = batches.useList();
   const { data: ledger } = useStockMovements(range);
+  const { data: deductFrom } = useDeductSalesFrom();
   const { data, isLoading } = inventory.useList();
   const { data: products } = useProducts();
   const create = inventory.useCreate();
@@ -244,12 +246,15 @@ function Inventory() {
       <div className="mt-3">
         <SectionCard
           title="Stock movements"
-          description={`Every change in stock · ${rangeLabel}`}
+          description={
+            `Every change in stock · ${rangeLabel}` +
+            (deductFrom ? ` · sales counted from ${shortDate(deductFrom)}` : "")
+          }
         >
           {ledgerRows.length === 0 ? (
             <EmptyState
               title="No stock movements in this period"
-              description="Finished batches add stock automatically; hand adjustments are recorded here too."
+              description="Finished batches add stock and sales take it out, both automatically. Hand adjustments are recorded here too."
             />
           ) : (
             <div className="overflow-x-auto">
@@ -272,7 +277,7 @@ function Inventory() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="rounded-full font-normal">
-                          {m.kind === "production" ? "Production" : "Adjustment"}
+                          {MOVEMENT_LABEL[m.kind]}
                         </Badge>
                       </TableCell>
                     </TableRow>

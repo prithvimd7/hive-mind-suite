@@ -14,7 +14,7 @@
 
 import {
   istDate, lwaAccessToken, parseRange, replaceSales, replaceItems, requireEnv, serveSync, markSynced, sleep, HttpError,
-  type DailySales, type ItemRow,
+  type DailySales, type ItemRow, type SaleStockResult,
 } from "../_shared/sync.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -78,6 +78,7 @@ serveSync("amazon_seller", async (req, db) => {
     rows_synced: days.length,
     orders: days.reduce((a, d) => a + d.orders, 0),
     product_lines: itemsResult.lines,
+    ...(itemsResult.stock ? { stock: itemsResult.stock } : {}),
     ...(itemsResult.pending ? { pending: true, note: "Daily totals are in. Amazon is still preparing the item report — sync again in a few minutes to fill in products." } : {}),
     since, until,
   };
@@ -94,7 +95,7 @@ type PendingReport = { id: string; since: string; until: string };
 async function syncItems(
   db: SupabaseClient,
   opts: { endpoint: string; token: string; marketplace: string; since: string; until: string },
-): Promise<{ lines: number; pending: boolean; config?: Record<string, unknown> }> {
+): Promise<{ lines: number; pending: boolean; config?: Record<string, unknown>; stock?: SaleStockResult }> {
   const { endpoint, token, marketplace, since, until } = opts;
   const headers = { "x-amz-access-token": token, "Content-Type": "application/json" };
 
@@ -129,8 +130,8 @@ async function syncItems(
 
     if (r.processingStatus === "DONE" && r.reportDocumentId) {
       const lines = await downloadItems(endpoint, headers, r.reportDocumentId, since, until);
-      await replaceItems(db, "amazon_seller", "Amazon", since, until, lines);
-      return { lines: lines.length, pending: false, config: stripPending(config) };
+      const { stock } = await replaceItems(db, "amazon_seller", "Amazon", since, until, lines);
+      return { lines: lines.length, stock, pending: false, config: stripPending(config) };
     }
     if (r.processingStatus === "CANCELLED" || r.processingStatus === "FATAL") {
       return { lines: 0, pending: false, config: stripPending(config) };

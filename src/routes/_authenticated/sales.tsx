@@ -15,6 +15,7 @@ import { useSalesData, type SalesDayRow } from "@/hooks/use-sales-data";
 import { useSalesItems } from "@/hooks/use-sales-items";
 import { groupProducts } from "@/lib/product-normalise";
 import { useProducts } from "@/hooks/use-products";
+import { OfflineSaleDialog } from "@/components/app/offline-sale-dialog";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -114,7 +115,12 @@ function Sales() {
       <PageHeader
         title="Sales & Revenue"
         description={`${rangeLabel} · ${formatRange(range)}`}
-        actions={<DateRangePicker value={search} onChange={setRange} />}
+        actions={
+          <>
+            <OfflineSaleDialog />
+            <DateRangePicker value={search} onChange={setRange} />
+          </>
+        }
       />
 
       {/* Breadcrumb: All channels › Shopify › April 2026 */}

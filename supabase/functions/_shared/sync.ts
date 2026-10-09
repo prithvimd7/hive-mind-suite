@@ -6,6 +6,7 @@
 //   - writes into sales_imports / ad_spend_imports and marks its data_sources row as synced.
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { parseProduct } from "./product-normalise.ts";
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -66,14 +67,19 @@ export type ItemRow = { order_date: string; product_name: string; sku?: string |
 
 /**
  * Replaces this source's product lines for the range, mirroring replaceSales so the daily
- * totals and the per-product detail stay consistent when a sync is re-run.
+ * totals and the per-product detail stay consistent when a sync is re-run. Sold units are
+ * then taken out of finished-goods stock.
  */
 export async function replaceItems(
   db: SupabaseClient, source: string, channel: string, since: string, until: string, items: ItemRow[],
 ) {
   const del = await db.from("sales_items").delete().eq("source", source).gte("order_date", since).lte("order_date", until);
   if (del.error) throw new Error(`Clearing old ${source} items failed: ${del.error.message}`);
-  if (!items.length) return 0;
+  // An empty range still has to be reconciled: those sales may have been cancelled, and their
+  // units belong back in stock.
+  if (!items.length) {
+    return { rows: 0, stock: await reconcileSaleStock(db, source, since, until) };
+  }
 
   // One row per day and product.
   const merged = new Map<string, ItemRow>();
@@ -96,8 +102,51 @@ export async function replaceItems(
     const { error } = await db.from("sales_items").insert(rows.slice(i, i + 500));
     if (error) throw new Error(`Saving ${source} items failed: ${error.message}`);
   }
-  return rows.length;
+  return { rows: rows.length, stock: await reconcileSaleStock(db, source, since, until) };
 }
+
+/**
+ * Takes this source's sold units out of finished-goods stock for the range.
+ *
+ * Listing titles are folded into products and pack sizes turned into real units here — the
+ * same matcher the app uses — and the per-day totals handed to apply_sale_stock(), which
+ * reconciles them against what was already deducted. Safe to re-run: the second run moves
+ * nothing. Products with no inventory item, and titles that match no product, are skipped.
+ */
+export async function reconcileSaleStock(
+  db: SupabaseClient, source: string, since: string, until: string,
+): Promise<SaleStockResult> {
+  const products = await db.from("products").select("id, name");
+  if (products.error) throw new Error(`Reading products failed: ${products.error.message}`);
+  const names = (products.data ?? []).map((p) => p.name as string);
+  const idByName = new Map<string, string>((products.data ?? []).map((p) => [p.name as string, p.id as string]));
+
+  const sold = await db.from("sales_items")
+    .select("order_date, product_name, quantity")
+    .eq("source", source).gte("order_date", since).lte("order_date", until);
+  if (sold.error) throw new Error(`Reading ${source} items failed: ${sold.error.message}`);
+
+  const perDay = new Map<string, { product_id: string; date: string; units: number }>();
+  let unmatched = 0;
+  for (const row of sold.data ?? []) {
+    const { product, packSize } = parseProduct(String(row.product_name), names);
+    const productId = idByName.get(product);
+    if (!productId) { unmatched += 1; continue; }
+    const key = `${row.order_date}|${productId}`;
+    const cur = perDay.get(key) ?? { product_id: productId, date: String(row.order_date), units: 0 };
+    cur.units += Number(row.quantity ?? 0) * packSize;
+    perDay.set(key, cur);
+  }
+
+  const { data, error } = await db.rpc("apply_sale_stock", {
+    p_source: source, p_since: since, p_until: until, p_rows: [...perDay.values()],
+  });
+  if (error) throw new Error(`Updating stock from ${source} sales failed: ${error.message}`);
+  return { stock_lines: perDay.size, stock_changes: Number(data ?? 0), unmatched_titles: unmatched };
+}
+
+/** What a reconciliation did: lines considered, stock changes applied, titles it couldn't place. */
+export type SaleStockResult = { stock_lines: number; stock_changes: number; unmatched_titles: number };
 
 export type AdRow = {
   campaign: string; spend_date: string; spend: number; revenue: number;

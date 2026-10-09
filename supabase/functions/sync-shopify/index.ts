@@ -107,12 +107,13 @@ serveSync("shopify", async (req, db) => {
 
   const days = [...byDay.values()];
   await replaceSales(db, "shopify", "Shopify", since, until, days);
-  const products = await replaceItems(db, "shopify", "Shopify", since, until, items);
+  const itemResult = await replaceItems(db, "shopify", "Shopify", since, until, items);
   await markSynced(db, "shopify");
   return {
     rows_synced: days.length,
     orders: days.reduce((a, d) => a + d.orders, 0),
-    product_lines: products,
+    product_lines: itemResult.rows,
+    stock: itemResult.stock,
     since, until,
   };
 });

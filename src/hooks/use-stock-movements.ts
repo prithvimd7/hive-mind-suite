@@ -2,14 +2,17 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { DateRange } from "@/lib/date-range";
 
+/** Why stock moved: a finished batch, a sale, or someone correcting the figure. */
+export type StockMovementKind = "production" | "sale" | "adjustment";
+
 /** One change in stock: positive is stock in, negative is stock out. */
 export interface StockMovement {
   id: string;
   itemId: string;
   date: string;
   qty: number;
-  kind: "production" | "adjustment";
-  /** e.g. "batch:<uuid>" for a finished batch, null for a hand adjustment. */
+  kind: StockMovementKind;
+  /** e.g. "batch:<uuid>" or "sale:shopify:<date>:<product>"; null for a hand adjustment. */
   sourceRef: string | null;
 }
 
@@ -46,7 +49,7 @@ export function useStockMovements(range: DateRange) {
         itemId: String(r.item_id),
         date: String(r.moved_on),
         qty: Number(r.qty),
-        kind: r.kind === "production" ? "production" : "adjustment",
+        kind: r.kind === "production" || r.kind === "sale" ? r.kind : "adjustment",
         sourceRef: (r.source_ref as string | null) ?? null,
       }));
 
@@ -64,4 +67,23 @@ export function useStockMovements(range: DateRange) {
 /** What an item's stock was at the end of the period: today's figure, less everything since. */
 export function stockAsOf(stockNow: number, itemId: string, ledger?: StockLedger) {
   return stockNow - (ledger?.afterEnd.get(itemId) ?? 0);
+}
+
+/**
+ * The date sales started counting against stock. Sales before it are ignored, so syncing an
+ * old month for its product detail doesn't take long-gone sales off today's stock.
+ */
+export function useDeductSalesFrom() {
+  return useQuery({
+    queryKey: ["stock_settings"],
+    queryFn: async (): Promise<string | null> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("stock_settings")
+        .select("deduct_sales_from")
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.deduct_sales_from as string | undefined) ?? null;
+    },
+  });
 }
