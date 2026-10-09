@@ -15,12 +15,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { inventory, isCriticalStock, isLowStock, type InventoryItem } from "@/hooks/use-modules";
 import { useProducts } from "@/hooks/use-products";
-import { currency, isoDaysAgo, shortDate } from "@/lib/format";
+import { currency, isoDaysAgo, shortDate, today } from "@/lib/format";
 import { DateRangePicker } from "@/components/app/date-range-picker";
 import { formatRange, resolveSelection, validateRangeSearch, type RangeSearch } from "@/lib/date-range";
 import { useSalesItems } from "@/hooks/use-sales-items";
 import { groupProducts } from "@/lib/product-normalise";
 import { batches } from "@/hooks/use-modules";
+import { useStockMovements, stockAsOf } from "@/hooks/use-stock-movements";
 import { downloadCsv } from "@/lib/csv-export";
 
 export const Route = createFileRoute("/_authenticated/inventory")({
@@ -43,6 +44,7 @@ function Inventory() {
   const setRange = (next: RangeSearch) => navigate({ search: next, replace: true });
   const { data: soldRows } = useSalesItems(range);
   const { data: batchRows } = batches.useList();
+  const { data: ledger } = useStockMovements(range);
   const { data, isLoading } = inventory.useList();
   const { data: products } = useProducts();
   const create = inventory.useCreate();
@@ -92,14 +94,26 @@ function Inventory() {
           soldRevenue: s?.revenue ?? 0,
           made: made.get(name) ?? 0,
           stock: item ? Number(item.stock) : null,
+          // What was on hand when the period closed, worked back from today through the ledger.
+          stockEnd: item ? stockAsOf(Number(item.stock), item.id, ledger) : null,
           unit: item?.unit ?? "",
         };
       })
       .sort((a, b) => b.soldUnits - a.soldUnits);
-  }, [soldRows, batchRows, products, items, range.since, range.until]);
+  }, [soldRows, batchRows, products, items, ledger, range.since, range.until]);
 
   const totalSold = movement.reduce((a, m) => a + m.soldUnits, 0);
   const totalMade = movement.reduce((a, m) => a + m.made, 0);
+  // A closing balance only means something once the period is over.
+  const closed = range.until < today();
+
+  const ledgerRows = useMemo(() => {
+    const nameOf = (id: string) => items.find((i) => i.id === id);
+    return (ledger?.inRange ?? []).map((m) => {
+      const item = nameOf(m.itemId);
+      return { ...m, item: item?.name ?? "Deleted item", unit: item?.unit ?? "" };
+    });
+  }, [ledger, items]);
 
   const fields: Field[] = [
     { name: "sku", label: "SKU", required: true },
@@ -181,7 +195,7 @@ function Inventory() {
       <div className="mt-4">
         <SectionCard
           title="Sold and made"
-          description={`${rangeLabel} · ${formatRange(range)} — stock column is today's figure`}
+          description={`${rangeLabel} · ${formatRange(range)}${closed ? " — closing balance and today's figure" : ""}`}
         >
           {movement.length === 0 ? (
             <EmptyState
@@ -197,6 +211,7 @@ function Inventory() {
                     <TableHead className="text-right">Sold</TableHead>
                     <TableHead className="text-right hidden sm:table-cell">Sales value</TableHead>
                     <TableHead className="text-right">Made</TableHead>
+                    {closed && <TableHead className="text-right hidden md:table-cell">At {shortDate(range.until)}</TableHead>}
                     <TableHead className="text-right">In stock now</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -207,10 +222,58 @@ function Inventory() {
                       <TableCell className="text-right">{m.soldUnits.toLocaleString("en-IN")}</TableCell>
                       <TableCell className="text-right hidden sm:table-cell">{currency(m.soldRevenue)}</TableCell>
                       <TableCell className="text-right">{m.made.toLocaleString("en-IN")}</TableCell>
+                      {closed && (
+                        <TableCell className="text-right hidden md:table-cell">
+                          {m.stockEnd === null ? <span className="text-muted-foreground">—</span> : m.stockEnd.toLocaleString("en-IN")}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         {m.stock === null
                           ? <span className="text-muted-foreground">not tracked</span>
                           : `${m.stock.toLocaleString("en-IN")} ${m.unit}`}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="mt-3">
+        <SectionCard
+          title="Stock movements"
+          description={`Every change in stock · ${rangeLabel}`}
+        >
+          {ledgerRows.length === 0 ? (
+            <EmptyState
+              title="No stock movements in this period"
+              description="Finished batches add stock automatically; hand adjustments are recorded here too."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Item</TableHead>
+                    <TableHead className="text-right">Change</TableHead>
+                    <TableHead>Source</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ledgerRows.map((m) => (
+                    <TableRow key={m.id}>
+                      <TableCell className="whitespace-nowrap">{shortDate(m.date)}</TableCell>
+                      <TableCell className="font-medium">{m.item}</TableCell>
+                      <TableCell className={`text-right whitespace-nowrap ${m.qty < 0 ? "text-destructive" : ""}`}>
+                        {m.qty > 0 ? "+" : ""}{m.qty.toLocaleString("en-IN")} <span className="text-xs text-muted-foreground">{m.unit}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="rounded-full font-normal">
+                          {m.kind === "production" ? "Production" : "Adjustment"}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}

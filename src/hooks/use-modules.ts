@@ -13,8 +13,10 @@ export type ImportRule = Tables<"expense_import_rules">;
 // "business_snapshot" is the executive dashboard's aggregate query — refresh it whenever source data changes.
 const DASH = ["business_snapshot"];
 
-export const batches = createTableHooks("production_batches", { orderBy: "batch_date", alsoInvalidate: DASH });
-export const inventory = createTableHooks("inventory_items", { orderBy: "name", ascending: true, alsoInvalidate: DASH });
+// Finishing a batch moves finished-goods stock (a database trigger does it), so batch
+// mutations have to refresh inventory and its ledger too.
+export const batches = createTableHooks("production_batches", { orderBy: "batch_date", alsoInvalidate: [...DASH, "inventory_items", "stock_movements"] });
+export const inventory = createTableHooks("inventory_items", { orderBy: "name", ascending: true, alsoInvalidate: [...DASH, "stock_movements"] });
 export const expenses = createTableHooks("expenses", { orderBy: "expense_date", alsoInvalidate: DASH });
 export const invoices = createTableHooks("invoices", { orderBy: "issue_date", alsoInvalidate: DASH });
 export const contacts = createTableHooks("crm_contacts", { orderBy: "updated_at", alsoInvalidate: DASH });
