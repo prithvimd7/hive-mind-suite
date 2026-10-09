@@ -523,6 +523,62 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          kind: string
+          moved_on: string
+          qty: number
+          source_ref: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          kind?: string
+          moved_on?: string
+          qty: number
+          source_ref?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          kind?: string
+          moved_on?: string
+          qty?: number
+          source_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_settings: {
+        Row: {
+          deduct_sales_from: string
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          deduct_sales_from?: string
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          deduct_sales_from?: string
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           attendance: string
@@ -597,6 +653,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_sale_stock: {
+        Args: {
+          p_rows: Json
+          p_since: string
+          p_source: string
+          p_until: string
+        }
+        Returns: number
+      }
+      apply_stock_delta: {
+        Args: {
+          p_delta: number
+          p_item: string
+          p_on: string
+          p_source: string
+        }
+        Returns: undefined
+      }
+      deduct_sales_from: { Args: never; Returns: string }
+      ensure_finished_item: { Args: { p_product: string }; Returns: string }
+      finished_item_for: { Args: { p_product: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -604,6 +681,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      product_id_by_name: { Args: { p_name: string }; Returns: string }
       schedule_company_os_syncs: {
         Args: { p_days?: number; p_functions?: string[]; p_schedule?: string }
         Returns: {
