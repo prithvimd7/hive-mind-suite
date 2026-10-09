@@ -161,7 +161,15 @@ function Integrations() {
       else if (r.pending) toast.info(r.note ?? `${label}: report is still being prepared — sync again in a few minutes.`);
       else {
         const what = r.orders !== undefined ? `${r.orders} orders` : `${r.rows_synced} rows`;
-        toast.success(`${label}: synced ${what} (${r.since} → ${r.until})${r.note ? `. ${r.note}` : ""}`);
+        const stock = r.stock ? ` Stock updated on ${r.stock.stock_changes} of ${r.stock.stock_lines} product-days.` : "";
+        toast.success(`${label}: synced ${what} (${r.since} → ${r.until})${r.note ? `. ${r.note}` : ""}.${stock}`);
+        // A title that matches no product deducts nothing, which is invisible unless it is said.
+        if (r.stock?.unmatched_titles) {
+          toast.warning(
+            `${label}: ${r.stock.unmatched_titles} listing title(s) matched no product, so their units were not taken out of stock.`,
+            { duration: 12_000 },
+          );
+        }
       }
     } catch (e) {
       const message = (e as Error).message;
