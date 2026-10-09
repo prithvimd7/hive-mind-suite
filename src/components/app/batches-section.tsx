@@ -81,7 +81,7 @@ export function BatchesSection({ products, range }: { products: Product[]; range
   return (
     <SectionCard
       title="Batches, yield & quality"
-      description="Log every production run"
+      description="Log every production run · good units join stock when QC passes"
       action={
         <RecordDialog<Batch>
           title="Batch"
