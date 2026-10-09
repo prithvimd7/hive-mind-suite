@@ -21,6 +21,8 @@ export type SyncSuccess = {
   orders?: number;
   pending?: boolean;
   note?: string;
+  /** What the sync did to finished-goods stock, when the source reports product lines. */
+  stock?: { stock_lines: number; stock_changes: number; unmatched_titles: number };
 };
 
 export type SyncFailure = {
