@@ -34,6 +34,8 @@ export function runFields(products: Product[]): Field[] {
  * The factory floor board: one row per batch in progress, moving through
  * cooking → filling → sealing → retort → done. Setting a batch to "done" removes it
  * from here and it appears under "Batches, yield & quality" for its output and QC result.
+ * Its good units are then added to the product's finished-goods stock automatically, unless
+ * QC fails — see the stock_from_production migration.
  */
 export function InProductionSection({ products }: { products: Product[] }) {
   const { data, isLoading } = batches.useList();
@@ -52,7 +54,7 @@ export function InProductionSection({ products }: { products: Product[] }) {
     update.mutate({ id: b.id, stage }, {
       onSuccess: () =>
         stage === "done"
-          ? toast.success(`${b.batch_code} finished — add units produced and QC result under Batches, yield & quality.`)
+          ? toast.success(`${b.batch_code} finished — enter units produced and the QC result under Batches, yield & quality, and they'll be added to stock.`)
           : toast.success(`${b.batch_code} → ${cap(stage)}`),
       onError: (e) => toast.error(e.message),
     });
