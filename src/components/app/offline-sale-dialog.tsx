@@ -33,6 +33,8 @@ export function OfflineSaleDialog() {
   ];
 
   async function save(payload: Record<string, unknown>) {
+    // One reference on both rows, so the Offline sales list can edit or delete them together.
+    const ref = `manual:${crypto.randomUUID()}`;
     const row = {
       order_date: String(payload.order_date),
       channel: String(payload.channel || "Offline"),
@@ -45,13 +47,14 @@ export function OfflineSaleDialog() {
       ...row,
       product_name: String(payload.product_name),
       quantity: Number(payload.quantity ?? 0),
+      import_ref: ref,
     });
     if (item.error) throw new Error(item.error.message);
 
     // The revenue side. If this fails the sale is still recorded against the product, so say
     // exactly what is missing rather than implying nothing was saved.
     const total = await supabase.from("sales_imports").insert({
-      ...row, orders: 1, external_id: `manual:${crypto.randomUUID()}`,
+      ...row, orders: 1, external_id: ref,
     });
     if (total.error) {
       throw new Error(`Saved the product line, but adding it to ${row.channel} revenue failed: ${total.error.message}`);

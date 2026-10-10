@@ -16,6 +16,7 @@ import { useSalesItems } from "@/hooks/use-sales-items";
 import { groupProducts } from "@/lib/product-normalise";
 import { useProducts } from "@/hooks/use-products";
 import { OfflineSaleDialog } from "@/components/app/offline-sale-dialog";
+import { ManualSalesSection } from "@/components/app/manual-sales-section";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -228,7 +229,7 @@ function Sales() {
               {products.length === 0 ? (
                 <EmptyState
                   title="No product detail for this period"
-                  description="Shopify and Amazon report items when synced. Manual entries, and CSVs without a product column, carry totals only."
+                  description="Shopify and Amazon report items when synced; offline sales carry their product. CSVs without a product column hold totals only."
                 />
               ) : (
                 <Table>
@@ -327,6 +328,12 @@ function Sales() {
           </div>
         </>
       )}
+
+      {/* Outside the "no sales yet" branch on purpose: a hand-entered sale should be findable
+          even if its revenue row is missing. */}
+      <div className="mt-3">
+        <ManualSalesSection range={range} rangeLabel={rangeLabel} />
+      </div>
     </div>
   );
 }
